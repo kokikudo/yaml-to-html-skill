@@ -1,0 +1,210 @@
+# Worked example: Apple's App Intents framework, indexed at depth 1 in a single fetch.
+#
+# Every `path` below was derived from the fetched JSON's own `identifiers` arrays and
+# `references` map — never from a page title. Note `spotlight` in the feature-integration
+# group: the page is titled "Spotlight integration", but its real path is
+# `.../appintents/spotlight` — the plausible `.../spotlight-integration` returns 404. That
+# page is why this file exists.
+#
+# Apple identifiers look like `doc://com.apple.AppIntents/documentation/AppIntents/<Segment>`;
+# the web path is `<root_path>/<segment lowercased>`.
+
+version: doc-index/v1
+
+source:
+  site: "Apple Developer Documentation"
+  root_title: "App Intents"
+  root_path: "developer.apple.com/documentation/appintents"
+  root_abstract: >-
+    Make content and actions discoverable by Apple Intelligence and support system experiences
+    like Siri, Spotlight, Shortcuts, and widgets.
+  fetched_at: "2026-08-12"
+  availability:
+    - "iOS 16.0+"
+    - "iPadOS 16.0+"
+    - "Mac Catalyst 16.0+"
+    - "macOS 13.0+"
+    - "tvOS 16.0+"
+    - "visionOS 1.0+"
+    - "watchOS 9.0+"
+
+groups:
+  - id: essentials
+    title: "Essentials"
+    abstract: "Learn the fundamentals of the App Intents framework."
+    pages:
+      - id: getting-started-with-the-app-intents-framework
+        title: "Getting started with the App Intents framework"
+        path: "developer.apple.com/documentation/appintents/getting-started-with-the-app-intents-framework"
+        abstract: "Make your app's actions and content available to the rest of the system using the App Intents framework"
+        kind: article
+      - id: updates-appintents
+        title: "App Intents updates"
+        path: "developer.apple.com/documentation/updates/appintents"
+        abstract: "Learn about important changes in App Intents"
+        kind: article
+
+  - id: app-specific-content
+    title: "App-specific content"
+    abstract: "Define the actions, data, and types that represent your app's capabilities to the system."
+    pages:
+      - id: app-intents
+        title: "App intents"
+        path: "developer.apple.com/documentation/appintents/app-intents"
+        abstract: "Make your app's custom actions available to the system by using app intent types"
+        kind: collection
+      - id: app-entities
+        title: "App entities"
+        path: "developer.apple.com/documentation/appintents/app-entities"
+        abstract: "Make your app's core types and data concepts available to the system using app entity types"
+        kind: collection
+      - id: app-enums
+        title: "App enums"
+        path: "developer.apple.com/documentation/appintents/app-enums"
+        abstract: "Make your app's enumerations and predefined values available to the system by using app enum types"
+        kind: collection
+      - id: common-data-types
+        title: "Common data types"
+        path: "developer.apple.com/documentation/appintents/common-data-types"
+        abstract: "Use framework-defined types for common parameter and result data types such as contacts, files, currencies, and more"
+        kind: collection
+      - id: app-extension
+        title: "App extension"
+        path: "developer.apple.com/documentation/appintents/app-extension"
+        abstract: "Deliver app intents in an app extension or other package that lives outside your app's code"
+        kind: collection
+
+  - id: system-integration
+    title: "System integration"
+    abstract: >-
+      Adopt schemas for well-known actions, display visual results, and donate behavioral
+      signals to Apple Intelligence.
+    pages:
+      - id: app-schema-domains
+        title: "App schema domains"
+        path: "developer.apple.com/documentation/appintents/app-schema-domains"
+        abstract: >-
+          Declare support for well-known actions and content by applying system-defined schemas
+          to your app intents, app entities, and app enumerations
+        kind: collection
+      - id: visual-presentation
+        title: "Visual presentation"
+        path: "developer.apple.com/documentation/appintents/visual-presentation"
+        abstract: >-
+          Display app intents and app entities visually using snippets, and associate intents
+          and entities with your app's scenes and views
+        kind: collection
+      - id: donations-and-discovery
+        title: "Donations and discovery"
+        path: "developer.apple.com/documentation/appintents/donations-and-discovery"
+        abstract: "Donate your app's intents and entities to the system to help it identify trends and predict future behaviors"
+        kind: collection
+
+  - id: feature-integration
+    title: "Feature integration"
+    abstract: >-
+      Make your app intents and entities available to Siri, Spotlight, Shortcuts, widgets, and
+      other system features.
+    pages:
+      - id: adopting-app-intents-to-support-system-experiences
+        title: "Adopting App Intents to support system experiences"
+        path: "developer.apple.com/documentation/appintents/adopting-app-intents-to-support-system-experiences"
+        abstract: "Create app intents and entities so people can use your app's content and actions across system experiences"
+        kind: sample_code
+      - id: apple-intelligence-and-siri-ai
+        title: "Apple Intelligence and Siri AI"
+        path: "developer.apple.com/documentation/appintents/apple-intelligence-and-siri-ai"
+        abstract: "Integrate your app with Apple Intelligence and bring it to Siri AI"
+        kind: collection
+      - id: spotlight
+        title: "Spotlight integration"
+        path: "developer.apple.com/documentation/appintents/spotlight"
+        abstract: "Add your entities to your app's Spotlight index, and automate the indexing of your content"
+        kind: collection
+      - id: app-shortcuts
+        title: "App Shortcuts"
+        path: "developer.apple.com/documentation/appintents/app-shortcuts"
+        abstract: >-
+          Improve the experience of using your app intents and entities in system experiences
+          like Siri, Spotlight, and the Shortcuts app
+        kind: collection
+      - id: widgets-live-activities-and-controls
+        title: "Widgets, Live Activities, and Controls"
+        path: "developer.apple.com/documentation/appintents/widgets-live-activities-and-controls"
+        abstract: "Implement interactive widgets, controls, watch complications, and Live Activities using app intents"
+        kind: collection
+      - id: hardware-interactions
+        title: "Hardware interactions"
+        path: "developer.apple.com/documentation/appintents/hardware-interactions"
+        abstract: >-
+          Run your App Shortcuts from the Action button on iPhone or Apple Watch, or launch your
+          own conversational app from the side button on iPhone
+        kind: collection
+      - id: focus
+        title: "Focus"
+        path: "developer.apple.com/documentation/appintents/focus"
+        abstract: "Adjust your app's behavior and filter incoming notifications when the current Focus changes"
+        kind: collection
+      - id: visual-intelligence
+        title: "Visual intelligence"
+        path: "developer.apple.com/documentation/appintents/visual-intelligence"
+        abstract: >-
+          Match images to your app's content and report the results to the Visual Intelligence
+          framework using an app intent
+        kind: collection
+
+  - id: testing
+    title: "Testing"
+    abstract: "Verify your intent, entity, query, and enum types work correctly by writing tests for them."
+    pages:
+      - id: testing-your-app-intents-code
+        title: "Testing your App Intents code"
+        path: "developer.apple.com/documentation/appintentstesting/testing-your-app-intents-code"
+        abstract: "Evaluate intents, entities, and queries, and verify your integration with system features like Spotlight and Siri"
+        kind: article
+      - id: appintentstesting
+        title: "App Intents Testing"
+        path: "developer.apple.com/documentation/appintentstesting"
+        abstract: "Test your app intents, entities, queries, and integration with system features like Siri or Spotlight"
+        kind: collection
+
+  - id: errors
+    title: "Errors"
+    abstract: "Handle errors that occur when running your app intents."
+    pages:
+      - id: appintenterror
+        title: "AppIntentError"
+        path: "developer.apple.com/documentation/appintents/appintenterror"
+        abstract: "An error that indicates a problem occurred while performing an app intent."
+        kind: symbol
+      - id: customappintenterrorconvertible
+        title: "CustomAppIntentErrorConvertible"
+        path: "developer.apple.com/documentation/appintents/customappintenterrorconvertible"
+        abstract: "A type that the system automatically converts to an app intent error."
+        kind: symbol
+
+  - id: deprecated
+    title: "Deprecated"
+    abstract: "Avoid deprecated classes and protocols in your apps."
+    pages:
+      - id: deprecated-symbols
+        title: "Deprecated symbols"
+        path: "developer.apple.com/documentation/appintents/deprecated-symbols"
+        abstract: "Review unsupported symbols and their replacements."
+        kind: collection
+
+  - id: structures
+    title: "Structures"
+    pages:
+      - id: emptysnippetintent
+        title: "EmptySnippetIntent"
+        path: "developer.apple.com/documentation/appintents/emptysnippetintent"
+        abstract: "A snippet intent that renders an empty view."
+        kind: symbol
+
+
+notes: >-
+  Depth 1, built from the JSON data endpoint. Collection pages list no children — a downstream
+  generation step reaches them transiently when a request needs them. Three paths fall outside
+  root_path (the two AppIntentsTesting pages and App Intents updates live in neighbouring
+  documentation trees), so refreshing this root will not update those three entries.
