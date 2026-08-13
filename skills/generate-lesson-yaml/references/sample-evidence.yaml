@@ -1,0 +1,80 @@
+# 説明用サンプル（evidence/v1）。
+#
+# 実際の取得ログではなく、スキーマの形と粒度を示すための見本。`verbatim` は本来
+# 取得したページの文字列をそのまま入れる場所で、要約も整形もしない。ここでは
+# サンプルとして短く抜粋した形にしてある。
+#
+# このファイルの fact id は sample-lesson.yaml の needs_facts / source_refs と
+# 1 対 1 で対応する。2 つのファイルはこの id だけで繋がる。
+
+version: evidence/v1
+
+facts:
+  - id: f-availability
+    kind: constraint
+    title: "App Intents のプラットフォーム可用性"
+    source:
+      page_title: "App Intents"
+      path: "developer.apple.com/documentation/appintents"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      iOS 16.0+ | iPadOS 16.0+ | Mac Catalyst 16.0+ | macOS 13.0+
+      tvOS 16.0+ | visionOS 1.0+ | watchOS 9.0+
+
+  - id: f-appentity-conformance
+    kind: concept
+    title: "App entity がシステムに何を提供するか"
+    source:
+      page_title: "App entities"
+      path: "developer.apple.com/documentation/appintents/app-entities"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      App entities provide the system with information about your app's data,
+      or about concepts related to your app's data.
+
+  - id: f-appentity-requirements
+    kind: declaration
+    title: "AppEntity に準拠するために必要な要素"
+    source:
+      page_title: "AppEntity"
+      path: "developer.apple.com/documentation/appintents/appentity"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      To adopt AppEntity, provide a stable identifier, a display representation
+      that the system shows to people, and a default query the system uses to
+      look up instances of the entity.
+
+  - id: f-entityquery-role
+    kind: declaration
+    title: "EntityQuery が担う役割"
+    source:
+      page_title: "EntityQuery"
+      path: "developer.apple.com/documentation/appintents/entityquery"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      An interface that the system uses to find entities by their identifier.
+      Implement entities(for:) to return the entities that match the given
+      identifiers.
+
+  - id: f-indexedentity-purpose
+    kind: concept
+    title: "IndexedEntity が Spotlight に対して何をするか"
+    source:
+      page_title: "Spotlight integration"
+      path: "developer.apple.com/documentation/appintents/spotlight"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      Adopt IndexedEntity to add your app entities to the Spotlight index so
+      people can find your app's content in search results.
+
+  - id: f-index-donation
+    kind: procedure
+    title: "エンティティを Spotlight のインデックスへ登録する手順"
+    source:
+      page_title: "Spotlight integration"
+      path: "developer.apple.com/documentation/appintents/spotlight"
+      fetched_at: "2026-08-12"
+    verbatim: |
+      Call indexAppEntities(_:) on the searchable index, passing the entities
+      you want to appear in Spotlight. Index the entities when your app's
+      content changes so the index stays current.

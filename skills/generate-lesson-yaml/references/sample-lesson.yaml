@@ -1,0 +1,213 @@
+# 説明用サンプル（lesson/v1）。
+#
+# sample-evidence.yaml と対になっていて、needs_facts / source_refs がその fact id を指す。
+# 実際の取得ログではなく、スキーマの形を示すための見本。
+
+version: lesson/v1
+
+goal:
+  title: "App Intents で自作の写真を Spotlight に載せる"
+  outcome: "自作の写真エンティティが Spotlight の検索結果に出るところまで作れている"
+  request: "App Intents を使って自分のアプリのデータを Spotlight に出したい。Swift の経験はあるが App Intents は初めて。"
+
+project:
+  name: "SpotlightPhotos"
+  stack: "Swift / SwiftUI"
+  scaffold:
+    origin: authored
+    origin_note: "プロジェクト作成手順はドキュメントに記載がないため補った。UI 操作に依存しないよう粗く書いている"
+    steps:
+      - "新規の iOS App プロジェクトを SpotlightPhotos の名前で作成する"
+      - "Swift / SwiftUI のテンプレートを選び、生成された状態のままビルドが通ることを確認する"
+  requirements:
+    - text: "iOS 16.0 以上"
+      origin: verbatim_from_doc
+      source_refs: [f-availability]
+    - text: "Swift の基本的な文法（struct / protocol 準拠）が読めること"
+      origin: authored
+      origin_note: "読み手の前提はドキュメントの範囲外なので教材側で置いた"
+
+scope:
+  covers:
+    - "App entity の定義"
+    - "EntityQuery による entity の解決"
+    - "Spotlight への index 登録"
+  excludes:
+    - "App Shortcuts / Siri 連携"
+    - "永続化（Core Data / SwiftData）"
+  truncated: false
+
+steps:
+  - id: st-model
+    title: "写真を表すモデルを用意する"
+    why: "Spotlight に出すのは「アプリのデータ」なので、まず entity にする前の素のデータ型を決めておく"
+    needs_facts: [f-appentity-conformance]
+    files:
+      - path: "SpotlightPhotos/Photo.swift"
+        action: create
+        lang: swift
+        origin: authored
+        origin_note: "教材用のダミーデータ。ドキュメントにはアプリ固有のモデル定義は当然ながら記載がない"
+        source_refs: []
+        content: |
+          import Foundation
+
+          struct Photo: Identifiable, Hashable {
+              let id: UUID
+              let title: String
+              let caption: String
+          }
+
+          extension Photo {
+              static let samples: [Photo] = [
+                  Photo(id: UUID(), title: "朝の海", caption: "日の出直後の水平線"),
+                  Photo(id: UUID(), title: "路地裏", caption: "雨上がりの石畳"),
+              ]
+          }
+    checkpoint:
+      kind: build
+      expect: "ビルドが通る。まだ Spotlight とは何も繋がっていない"
+      origin: authored
+      origin_note: "この段階で何が確認できるかはドキュメントに記載がないため補った"
+
+  - id: st-entity
+    title: "PhotoEntity を定義する"
+    why: "Spotlight のインデックス対象は entity なので、写真を entity として表す必要がある"
+    needs_facts: [f-appentity-conformance, f-appentity-requirements]
+    files:
+      - path: "SpotlightPhotos/PhotoEntity.swift"
+        action: create
+        lang: swift
+        origin: synthesized
+        origin_note: "「entity がシステムに何を提供するか」の説明と、AppEntity 準拠に必要な 3 要素の記述を合わせて、この教材の型名 PhotoEntity に書き起こした"
+        source_refs: [f-appentity-conformance, f-appentity-requirements]
+        content: |
+          import AppIntents
+
+          struct PhotoEntity: AppEntity {
+              let id: UUID
+              let title: String
+              let caption: String
+
+              static var typeDisplayRepresentation: TypeDisplayRepresentation = "写真"
+
+              var displayRepresentation: DisplayRepresentation {
+                  DisplayRepresentation(title: "\(title)", subtitle: "\(caption)")
+              }
+
+              static var defaultQuery = PhotoEntityQuery()
+          }
+
+          extension PhotoEntity {
+              init(photo: Photo) {
+                  self.init(id: photo.id, title: photo.title, caption: photo.caption)
+              }
+          }
+    checkpoint:
+      kind: build
+      expect: "PhotoEntity が定義できている。defaultQuery がまだ無いのでこの時点ではビルドが通らない"
+      origin: authored
+      origin_note: "次の手順との依存関係は教材側の構成なので補った"
+    see_also:
+      - title: "App entities"
+        path: "developer.apple.com/documentation/appintents/app-entities"
+
+  - id: st-query
+    title: "PhotoEntityQuery で entity を引けるようにする"
+    why: "システムは id からエンティティを引き直す。その導線が無いと entity は成立しない"
+    needs_facts: [f-entityquery-role]
+    files:
+      - path: "SpotlightPhotos/PhotoEntityQuery.swift"
+        action: create
+        lang: swift
+        origin: adapted
+        origin_note: "公式の entities(for:) の役割説明を、この教材の Photo.samples を引く実装に書き換えた"
+        source_refs: [f-entityquery-role]
+        content: |
+          import AppIntents
+
+          struct PhotoEntityQuery: EntityQuery {
+              func entities(for identifiers: [UUID]) async throws -> [PhotoEntity] {
+                  Photo.samples
+                      .filter { identifiers.contains($0.id) }
+                      .map(PhotoEntity.init(photo:))
+              }
+
+              func suggestedEntities() async throws -> [PhotoEntity] {
+                  Photo.samples.map(PhotoEntity.init(photo:))
+              }
+          }
+    checkpoint:
+      kind: build
+      expect: "ビルドが通る。entity として成立したが、まだ検索には出ない"
+      origin: authored
+      origin_note: "到達点の言語化はドキュメントに記載がないため補った"
+    see_also:
+      - title: "EntityQuery"
+        path: "developer.apple.com/documentation/appintents/entityquery"
+
+  - id: st-index
+    title: "Spotlight のインデックスに登録する"
+    why: "entity を定義しただけでは検索対象にならない。インデックスへの登録がここで初めて起きる"
+    needs_facts: [f-indexedentity-purpose, f-index-donation]
+    files:
+      - path: "SpotlightPhotos/PhotoEntity.swift"
+        action: update
+        lang: swift
+        origin: adapted
+        origin_note: "IndexedEntity 準拠の追加分のみ。公式の説明をこの教材の型に当てた"
+        source_refs: [f-indexedentity-purpose]
+        content: |
+          import AppIntents
+          import CoreSpotlight
+
+          struct PhotoEntity: AppEntity, IndexedEntity {
+              let id: UUID
+              let title: String
+              let caption: String
+
+              static var typeDisplayRepresentation: TypeDisplayRepresentation = "写真"
+
+              var displayRepresentation: DisplayRepresentation {
+                  DisplayRepresentation(title: "\(title)", subtitle: "\(caption)")
+              }
+
+              static var defaultQuery = PhotoEntityQuery()
+
+              var attributeSet: CSSearchableItemAttributeSet {
+                  let attributes = CSSearchableItemAttributeSet(contentType: .image)
+                  attributes.title = title
+                  attributes.contentDescription = caption
+                  return attributes
+              }
+          }
+
+          extension PhotoEntity {
+              init(photo: Photo) {
+                  self.init(id: photo.id, title: photo.title, caption: photo.caption)
+              }
+          }
+      - path: "SpotlightPhotos/PhotoIndexer.swift"
+        action: create
+        lang: swift
+        origin: synthesized
+        origin_note: "「インデックスへ登録する」手順と「内容が変わったら再登録する」方針を 1 つの入口にまとめた"
+        source_refs: [f-index-donation, f-indexedentity-purpose]
+        content: |
+          import AppIntents
+          import CoreSpotlight
+
+          enum PhotoIndexer {
+              static func indexAll() async throws {
+                  let entities = Photo.samples.map(PhotoEntity.init(photo:))
+                  try await CSSearchableIndex.default().indexAppEntities(entities)
+              }
+          }
+    checkpoint:
+      kind: observe
+      expect: "アプリを一度起動してから Spotlight で写真のタイトルを検索すると結果に出る。反映まで数秒かかることがある"
+      origin: authored
+      origin_note: "検索結果に出るかどうかは学習者が目で確認するしかないため、機械検証の形にはしていない"
+    see_also:
+      - title: "Spotlight integration"
+        path: "developer.apple.com/documentation/appintents/spotlight"
