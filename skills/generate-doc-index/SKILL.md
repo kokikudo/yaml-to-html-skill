@@ -52,10 +52,14 @@ the same request would produce different material depending on what an unrelated
 happened to add, and nothing would record why. The index changes only when a user asks this
 skill to refresh it.
 
-## Where to write the index
+## Output bundle structure
 
-Write to a **stable, non-temporary directory** — the whole point is reuse across future
-sessions. A sensible default is `<workspace>/doc-index/<tree-id>/index.yaml`.
+Create a directory with the correct name based on the source content, and place the generated `index.html` inside it.
+
+```
+<bundle>/
+  index.yaml
+```
 
 **Do not write into this plugin's own repository** unless the user is specifically working on
 this plugin; a generated index is unrelated content that would pollute `git status` here.
