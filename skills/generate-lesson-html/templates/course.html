@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<!--
+  テンプレート: コース本体（views/<course_name>.html）
+  build_lesson_html.py が __TOKEN__ を置換して出力する。手で書き換えるのはこのテンプレート側。
+  差し込み口:
+    __COURSE_TITLE__     コース名
+    __BACK_HREF__        コース一覧への相対パス（既定 ../index.html）
+    __STEP_COUNT__       Step 数（左ペインの見出し用）
+    __NAV_ITEMS__        左ペインのナビ（概要 / 各 Step / 出典一覧）
+    __PANELS__           右ペインの各パネル（ナビ 1 項目につき 1 パネル・同じ順序）
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__COURSE_TITLE__</title>
+<style>
+:root{
+  --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f1f3f7; --border:#e3e6ec;
+  --text:#1d2330; --muted:#5b6577; --accent:#2b6cff; --accent-2:#1a9e6b;
+  --chip:#eef1f6; --code-bg:#f4f6fa; --warn:#b8730a; --radius:12px;
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --panel:#171a21; --panel-2:#1f232c; --border:#2c313c;
+  --text:#e6e9ef; --muted:#9aa3b2; --accent:#5aa9ff; --accent-2:#36c08f;
+  --chip:#262b36; --code-bg:#0c0e13; --warn:#e0a33c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",
+    "Noto Sans JP",Meiryo,sans-serif;
+  line-height:1.9; -webkit-font-smoothing:antialiased;
+}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;
+  background:var(--chip);border:1px solid var(--border);border-radius:5px;padding:1px 5px;
+}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.app-header{
+  padding:12px 20px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));
+  position:sticky;top:0;z-index:5;
+}
+.header-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.back-link{
+  display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+  color:var(--accent);font-size:13px;font-weight:600;padding:4px 8px;border-radius:8px;
+}
+.back-link:hover{background:var(--chip)}
+.back-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.course-name{margin:4px 0 0;font-size:16px;font-weight:600}
+.theme-toggle{
+  flex:none;background:var(--chip);color:var(--text);border:1px solid var(--border);
+  border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;
+}
+.theme-toggle:hover{border-color:var(--accent)}
+.theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.layout{display:grid;grid-template-columns:minmax(240px,320px) 1fr;flex:1;min-height:0}
+.pane{min-width:0;min-height:0}
+.pane-left{
+  border-right:1px solid var(--border);background:var(--panel);
+  padding:20px 16px;overflow-y:auto;max-height:calc(100vh - 62px);position:sticky;top:62px;
+}
+.nav-title{font-size:13px;color:var(--muted);margin:0 0 12px;letter-spacing:.4px}
+.step-nav{list-style:none;margin:0;padding:0}
+.step-nav li{position:relative}
+.step-nav li + li::before{
+  content:"";position:absolute;left:20px;top:-10px;height:10px;
+  border-left:2px solid var(--border);
+}
+.nav-btn{
+  display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;
+  background:none;border:1px solid transparent;border-radius:10px;
+  color:var(--text);font:inherit;font-size:14px;line-height:1.5;
+  padding:8px 10px;margin:0 0 10px;cursor:pointer;
+}
+.nav-btn:hover{background:var(--panel-2)}
+.nav-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nav-btn.active{background:var(--chip);border-color:var(--accent);font-weight:600}
+.nav-btn code{background:none;border:0;padding:0;font-size:.95em}
+.nav-num{
+  flex:none;width:22px;height:22px;border-radius:50%;background:var(--chip);
+  border:1px solid var(--border);color:var(--muted);
+  font-size:12px;line-height:20px;text-align:center;
+}
+.nav-btn.active .nav-num{background:var(--accent);border-color:var(--accent);color:#fff}
+.pane-right{padding:28px 32px 56px;overflow-x:auto}
+.panel{max-width:800px;margin:0 auto}
+.panel.hidden{display:none}
+.panel > h2{font-size:27px;margin:0 0 14px;letter-spacing:.2px;line-height:1.45}
+.panel .eyebrow{color:var(--muted);font-size:12px;margin:0 0 6px;letter-spacing:.4px}
+p{margin:0 0 12px}
+.lead{font-size:16px}
+ul,ol{margin:0 0 14px;padding-left:22px}
+li{margin:4px 0}
+ul.plain-list{list-style:none;padding-left:0}
+ul.plain-list li{
+  border-bottom:1px solid var(--border);padding:8px 0;margin:0;
+}
+ul.plain-list li:last-child{border-bottom:0}
+.lead-box{
+  background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 22px;
+}
+.lead-box p:last-child{margin-bottom:0}
+h3{font-size:17px;margin:28px 0 10px}
+.file{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  margin:0 0 18px;overflow:hidden;
+}
+.file-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:10px 12px;background:var(--panel-2);border-bottom:1px solid var(--border);
+}
+.file-path{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;
+  word-break:break-all;background:none;border:0;padding:0;
+}
+.file-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.file-note{padding:12px 14px 0}
+.file-note p:last-child{margin-bottom:8px}
+pre.code{
+  margin:0;padding:14px;background:var(--code-bg);overflow-x:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  line-height:1.65;
+}
+.badge{
+  display:inline-block;border-radius:6px;padding:1px 8px;font-size:11px;
+  border:1px solid currentColor;white-space:nowrap;
+}
+.badge.neutral{color:var(--muted)}
+.badge.check{color:var(--accent-2)}
+.note{
+  border-left:3px solid var(--warn);background:var(--panel);border-radius:0 8px 8px 0;
+  padding:12px 16px;margin:0 0 18px;
+}
+.checkpoint{
+  background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent-2);
+  border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 18px;
+}
+.checkpoint .expect{margin:8px 0 0}
+.errors{
+  border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:0 0 14px;
+  background:var(--panel);
+}
+.errors .symptom{font-weight:600;margin:0}
+.errors .cause{color:var(--muted);font-size:14px;margin:2px 0 0}
+.ref-line{font-size:14px;margin:8px 0 0}
+.fact-link{color:var(--accent);text-decoration:none;border-bottom:1px dotted currentColor}
+.fact-link:hover{border-bottom-style:solid}
+.fact-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.see-also{list-style:none;padding-left:0;font-size:14px}
+.see-also li{border-bottom:1px solid var(--border);padding:8px 0}
+.see-also li:last-child{border-bottom:0}
+.see-also .path{
+  color:var(--muted);font-size:12px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;
+}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.chip{
+  background:var(--chip);color:var(--muted);border:1px solid var(--border);
+  border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap;
+}
+.banner{
+  border:1px solid var(--warn);color:var(--warn);border-radius:8px;
+  padding:12px 14px;margin:0 0 18px;font-size:14px;
+}
+/* --- 出典一覧 --- */
+.fact-entry{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;margin:0 0 18px;scroll-margin-top:80px;
+  transition:border-color .25s ease, box-shadow .25s ease;
+}
+.fact-entry h3{margin:0 0 6px;font-size:19px;line-height:1.5}
+.fact-entry.flash{border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,108,255,.18)}
+.fact-path{
+  margin:0 0 12px;color:var(--accent);font-size:13.5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;
+}
+.fact-gist{margin:0 0 12px}
+.fact-original{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.fact-original-label{margin:0 0 6px;color:var(--muted);font-size:11.5px;letter-spacing:.4px}
+.fact-original pre{
+  margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  white-space:pre-wrap;word-break:break-word;line-height:1.6;
+}
+.fact-meta{margin:10px 0 0;color:var(--muted);font-size:12px}
+.fact-id{margin-left:8px;opacity:.45;font-size:11px;font-family:ui-monospace,Menlo,monospace}
+.copy-btn{
+  background:var(--accent);color:#fff;border:0;border-radius:8px;
+  padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;
+}
+.copy-btn:hover{filter:brightness(1.06)}
+.copy-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.copy-btn.copied{background:var(--accent-2)}
+.pager{
+  display:flex;justify-content:space-between;gap:10px;
+  max-width:800px;margin:36px auto 0;padding-top:18px;border-top:1px solid var(--border);
+}
+.pager button{
+  background:var(--chip);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:13px;cursor:pointer;max-width:48%;text-align:left;
+}
+.pager button:hover:not(:disabled){border-color:var(--accent)}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pager .next{text-align:right}
+.muted{color:var(--muted);font-size:14px}
+.empty{color:var(--muted);font-size:14px}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  .pane-left{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--border)}
+  .pane-right{padding:22px 16px 48px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div class="header-row">
+      <div>
+        <a class="back-link" id="back-link" href="__BACK_HREF__">&lt; コース一覧</a>
+        <p class="course-name">__COURSE_TITLE__</p>
+      </div>
+      <button class="theme-toggle" type="button" id="theme-toggle" aria-label="テーマ切り替え">🌙 ダーク</button>
+    </div>
+  </header>
+  <main class="layout">
+    <nav class="pane pane-left" aria-label="コースの Step">
+      <p class="nav-title">コースの Step（全 __STEP_COUNT__ 手順）</p>
+      <ul class="step-nav">
+        __NAV_ITEMS__
+      </ul>
+    </nav>
+    <section class="pane pane-right" aria-label="Step の内容">
+      __PANELS__
+      <div class="pager">
+        <button type="button" id="prev-btn">&lt; 前へ</button>
+        <button type="button" id="next-btn" class="next">次へ &gt;</button>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+(function(){
+  "use strict";
+  var navButtons = Array.prototype.slice.call(document.querySelectorAll(".nav-btn"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  var prevBtn = document.getElementById("prev-btn");
+  var nextBtn = document.getElementById("next-btn");
+  var backLink = document.getElementById("back-link");
+  var toggle = document.getElementById("theme-toggle");
+  var current = 0;
+
+  function indexOfStep(stepId){
+    for (var i = 0; i < navButtons.length; i++){
+      if (navButtons[i].getAttribute("data-step") === stepId){ return i; }
+    }
+    return -1;
+  }
+
+  // ---- hash: #step=<id> / #fact=<id> (+ &theme=dark) ----
+  function parseHash(){
+    var out = {};
+    var hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return out;
+    var parts = hash.split("&");
+    for (var i = 0; i < parts.length; i++){
+      var pair = parts[i].split("=");
+      if (pair.length === 2){ out[pair[0]] = pair[1]; }
+    }
+    return out;
+  }
+  function currentTheme(){
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+  function writeHash(extra){
+    var step = navButtons.length ? navButtons[current].getAttribute("data-step") : "";
+    var hash = extra ? extra : "#step=" + step;
+    if (currentTheme() === "dark"){ hash += "&theme=dark"; }
+    window.history.replaceState(null, "", hash);
+    if (backLink){
+      var base = backLink.getAttribute("href").split("#")[0];
+      backLink.setAttribute("href", currentTheme() === "dark" ? base + "#theme=dark" : base);
+    }
+  }
+
+  function labelOf(index){
+    var btn = navButtons[index];
+    if (!btn) return "";
+    var text = btn.getAttribute("data-label") || btn.textContent;
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function show(index, scrollTop){
+    if (index < 0 || index >= navButtons.length) return;
+    current = index;
+    for (var i = 0; i < navButtons.length; i++){
+      navButtons[i].classList.toggle("active", i === index);
+      navButtons[i].setAttribute("aria-current", i === index ? "true" : "false");
+    }
+    for (var p = 0; p < panels.length; p++){
+      panels[p].classList.toggle("hidden", p !== index);
+    }
+    if (prevBtn){
+      prevBtn.disabled = index === 0;
+      prevBtn.textContent = index === 0 ? "< 前へ" : "< " + labelOf(index - 1);
+    }
+    if (nextBtn){
+      nextBtn.disabled = index === navButtons.length - 1;
+      nextBtn.textContent = index === navButtons.length - 1 ? "次へ >" : labelOf(index + 1) + " >";
+    }
+    if (scrollTop !== false){ window.scrollTo(0, 0); }
+  }
+
+  // ---- jump from a step to one entry of the 出典一覧 ----
+  function showFact(factId){
+    var target = document.getElementById("fact-" + factId);
+    var evidenceIndex = indexOfStep("evidence");
+    if (!target || evidenceIndex < 0) return false;
+    show(evidenceIndex, false);
+    writeHash("#fact=" + factId);
+    target.scrollIntoView({block: "start"});
+    target.classList.add("flash");
+    setTimeout(function(){ target.classList.remove("flash"); }, 1600);
+    return true;
+  }
+
+  var factLinks = document.querySelectorAll(".fact-link");
+  for (var f = 0; f < factLinks.length; f++){
+    factLinks[f].addEventListener("click", function(event){
+      if (showFact(this.getAttribute("data-fact"))){ event.preventDefault(); }
+    });
+  }
+
+  for (var n = 0; n < navButtons.length; n++){
+    (function(index){
+      navButtons[index].addEventListener("click", function(){ show(index); writeHash(); });
+    })(n);
+  }
+  if (prevBtn){ prevBtn.addEventListener("click", function(){ show(current - 1); writeHash(); }); }
+  if (nextBtn){ nextBtn.addEventListener("click", function(){ show(current + 1); writeHash(); }); }
+
+  if (toggle){
+    toggle.addEventListener("click", function(){
+      var dark = currentTheme() === "dark";
+      if (dark){ document.documentElement.removeAttribute("data-theme"); }
+      else { document.documentElement.setAttribute("data-theme", "dark"); }
+      toggle.textContent = dark ? "🌙 ダーク" : "☀ ライト";
+      writeHash();
+    });
+  }
+
+  // ---- copy buttons (code blocks) ----
+  function flash(btn){
+    var original = btn.textContent;
+    btn.textContent = "コピーしました";
+    btn.classList.add("copied");
+    setTimeout(function(){ btn.textContent = original; btn.classList.remove("copied"); }, 1400);
+  }
+  function fallbackCopy(text, btn){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "absolute";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (ok){ flash(btn); } else { btn.textContent = "コピーできませんでした"; }
+  }
+  var copyButtons = document.querySelectorAll(".copy-btn");
+  for (var c = 0; c < copyButtons.length; c++){
+    copyButtons[c].addEventListener("click", function(){
+      var target = document.getElementById(this.getAttribute("data-target"));
+      if (!target) return;
+      var text = target.textContent;
+      var btn = this;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ flash(btn); },
+          function(){ fallbackCopy(text, btn); });
+      } else {
+        fallbackCopy(text, btn);
+      }
+    });
+  }
+
+  // ---- initial state from the hash ----
+  var initial = parseHash();
+  if (initial.theme === "dark"){ document.documentElement.setAttribute("data-theme", "dark"); }
+  if (toggle){ toggle.textContent = currentTheme() === "dark" ? "☀ ライト" : "🌙 ダーク"; }
+  if (initial.fact && showFact(initial.fact)){
+    // opened directly on one source entry
+  } else {
+    var startIndex = initial.step ? indexOfStep(initial.step) : 0;
+    show(startIndex < 0 ? 0 : startIndex);
+    writeHash();
+  }
+})();
+</script>
+</body>
+</html>
