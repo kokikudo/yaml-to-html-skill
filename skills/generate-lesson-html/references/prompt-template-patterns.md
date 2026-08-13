@@ -25,16 +25,16 @@
 
 | トークン | 中身 |
 |---|---|
-| `{{index_yaml_path}}` | バンドルにコピーされた `index.yaml` |
+| `{{index_yaml_path}}` | バンドルに複製された `index.yaml` |
 | `{{bundle_dir}}` | バンドルのルート |
 | `{{courses_dir}}` | バンドル内の `courses/` |
 | `{{lesson_yaml_paths}}` | 全コースの `lesson.yaml` の一覧（`- タイトル: パス` の複数行） |
-| `{{copy_json_path}}` | バンドルの `copy.json`（受講者向けの文章） |
+| `{{narration_json_path}}` | バンドルの `narration.json`（受講者向けの文章） |
 | `{{build_script_path}}` | `build_lesson_html.py` の絶対パス |
 
 それ以外の `{{…}}`（例 `{{作りたいコース}}`）は**そのまま残る**。ユーザーが自分で埋める枠。
 
-**YAML や copy の中身をプロンプトに貼らない。** 貼ると、教材が更新されてもプロンプトの中の
+**YAML や narration の中身をプロンプトに貼らない。** 貼ると、教材が更新されてもプロンプトの中の
 写しが古いまま残る。パスだけを渡し、読むのは AI にやらせる。
 
 ## 最低限そろえる 4 種
@@ -48,19 +48,19 @@
 
 ## 本文に必ず書くこと
 
-- **読むファイル。** `index.yaml` と `copy.json` の絶対パス（＋必要なら既存の `lesson.yaml`
+- **読むファイル。** `index.yaml` と `narration.json` の絶対パス（＋必要なら既存の `lesson.yaml`
   群）。「中身は貼っていないので開いて読むこと」と明示する。
 - **手順は generate-lesson-yaml と同じであること。** 骨格 → `needs_facts` の取得 →
   逐語で `evidence.yaml` → 束縛。ここを省くと出典の無い教材が生える。
 - **origin と source_refs を全項目に付けること。**（画面には出ないが、教材の追跡可能性の
   中心であり、ビルドが規則を検査する。）
-- **受講者向けの原稿（copy JSON）も書くこと。** ここを落とすと、画面が `lesson.yaml` の
+- **受講者向けの原稿（narration JSON）も書くこと。** ここを落とすと、画面が `lesson.yaml` の
   転記になる。書き方のルール（ですます調・`` ` `` で固有名詞・導入は「なぜ今これを
-  やるのか」から・作り手のメタ情報を書かない）を本文に含める → `copy-contract.md`。
+  やるのか」から・作り手のメタ情報を書かない）を本文に含める → `narration-contract.md`。
 - **埋まらないときは末尾から切ること。** 中抜きしない、3 手順未満なら中止する。
-- **出力は YAML 2 ファイルと copy JSON だけであること。** HTML はビルドスクリプトが作る。
+- **出力は YAML 2 ファイルと narration JSON だけであること。** HTML はビルドスクリプトが作る。
 - **ビルドコマンド。**
-  `python3 {{build_script_path}} --bundle {{bundle_dir}} --lesson <dir> --copy <copy.json>`
+  `python3 {{build_script_path}} --bundle {{bundle_dir}} --lesson <dir> --narration <narration.json>`
   と、そのあと `validate_html.py` を実行すること。
 - **既存を壊さないこと。** `index.html` や既存コースを書き換えない。増えるのはコース 1 つ。
 - **`http(s)://` を落とすこと。** 検証で弾かれる。

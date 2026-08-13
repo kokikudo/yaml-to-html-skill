@@ -7,18 +7,18 @@
 <bundle>/
   index.html                 コース一覧（概要 / コース / コース追加プロンプト）
   courses.json               順序付きマニフェスト {"courses":[{id,title,file,steps,…}, …]}
-  copy.json                  受講者向けの文章（--copy をマージして保存。再ビルドで保持）
-  prompts.json               コース追加プロンプト（コピーされる）
-  index.yaml                 コピーされる。対応環境の取得元で、プロンプトが絶対パスで引用する
+  narration.json                  受講者向けの文章（--narration をマージして保存。再ビルドで保持）
+  prompts.json               コース追加プロンプト（複製される）
+  index.yaml                 複製される。対応環境の取得元で、プロンプトが絶対パスで引用する
   courses/
-    <course>/lesson.yaml     コピーされる（コースの原本）
-    <course>/evidence.yaml   コピーされる
+    <course>/lesson.yaml     複製される（コースの原本）
+    <course>/evidence.yaml   複製される
   views/
     <course>.html            コース本体。1 コース = 1 ページ
 ```
 
-画面に出る文章のうち、**タイトルとソースコード以外は `copy.json` から来る**。`lesson.yaml`
-は記録であって教材の本文ではないため（→ `copy-contract.md`）。
+画面に出る文章のうち、**タイトルとソースコード以外は `narration.json` から来る**。`lesson.yaml`
+は記録であって教材の本文ではないため（→ `narration-contract.md`）。
 
 `scripts/build_lesson_html.py` がこの形を作り、維持する。
 
@@ -38,15 +38,15 @@
 
 ```text
 header            タイトル + ライト/ダークトグル
-概要              copy.overview.lead（書き起こした文章）+ index.yaml の対応環境チップ
+概要              narration.overview.lead（書き起こした文章）+ index.yaml の対応環境チップ
 コース            コースカードのグリッド。1 枚 = 1 コース
-                    タイトル / copy の summary / 手順数 / stack
+                    タイトル / narration の summary / 手順数 / stack
 コース追加プロンプト  コピーボタン付きのカード（教材を作る人向け。チャット UI ではない）
 inline <style> / <script>   外部 CSS・JS なし
 ```
 
 - 概要は `index.yaml` の `root_abstract`（英語の原文）を転記しない。受講者向けに書き起こした
-  文章を `copy.overview.lead` から出す。無い場合はプレースホルダになり、ビルドが警告する。
+  文章を `narration.overview.lead` から出す。無い場合はプレースホルダになり、ビルドが警告する。
 - カードは `courses.json` の順（＝ `--lesson` を渡した順）。
 
 ## 画面 2: コース本体（`views/<course>.html`）
@@ -85,4 +85,4 @@ header       < コース一覧（戻る）+ コース名 + ライト/ダーク�
 - 通信なし・外部スクリプト/CSS なし・ストレージなし・cookie なし・秘密情報なし。
 - `scripts/validate_html.py` が `index.html` と全 `views/*.html` を検査する。
 - 教材のコードはそのまま `<pre>` に入る（HTML エスケープ済み）。実行はされない。
-- `copy.json` の文章も段落と `<code>` にしか変換されない（HTML は解釈しない）。
+- `narration.json` の文章も段落と `<code>` にしか変換されない（HTML は解釈しない）。

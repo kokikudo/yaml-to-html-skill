@@ -2,7 +2,7 @@
 
 このスキルの生成物は**オフラインで自己完結した安全なバンドル**。ここでの「生成」は
 テンプレートへの流し込みであって、AI が HTML を書き起こすことではない。AI が書くのは
-**受講者向けの文章（copy JSON）**だけ。
+**narration JSON）**だけ。
 
 ## まず: AI は HTML を書かない
 
@@ -27,7 +27,7 @@
 
 最後の 1 つがよく引っかかる。`see_also[].path` や `source.path` は**ラベル**であって
 リンクではない。スキームを落として `developer.apple.com/documentation/...` の形で書く。
-copy JSON やプロンプト本文に禁止トークン（`fetch(` など）を書いてしまうのも同じく失敗するので、
+narration JSON やプロンプト本文に禁止トークン（`fetch(` など）を書いてしまうのも同じく失敗するので、
 言い回しを変える。
 
 ## 許可
@@ -64,9 +64,9 @@ copy JSON やプロンプト本文に禁止トークン（`fetch(` など）を�
   ページ全体を横に流さない。
 - **`prefers-reduced-motion` を尊重する。**
 
-## 文章のルール（copy JSON 側）
+## narration JSON 側）
 
-詳細は `copy-contract.md`。要点だけ:
+詳細は `narration-contract.md`。要点だけ:
 
 - **画面のタイトルとコード以外の文章は、すべて受講者向けに書き起こす。** `lesson.yaml` の
   `why` / `outcome` / `expect` をそのまま出さない。

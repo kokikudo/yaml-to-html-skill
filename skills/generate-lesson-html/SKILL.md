@@ -1,6 +1,6 @@
 ---
 name: generate-lesson-html
-description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）から、オフラインで完結するハンズオン教材の HTML バンドルを作る。出力はコース一覧（概要＋コースカード＋コース追加プロンプト）と、コースごとの 1 ページ（左に Step ナビ、右にその Step の内容、左上に戻るボタン）。画面に出る文章のうちタイトルとソースコード以外は、このスキルが受講者向けに書き起こす（copy JSON）。lesson.yaml は記録であって教材の本文ではないため、そのまま転記しない。出典は各 Step からリンクで出典一覧に飛べ、日本語の要旨と公式の原文を併記する。origin などの作り手向けメタ情報は画面に出さず、ビルド時の検査に使う。HTML はテンプレート固定で、AI が HTML を書くことはない。コースは追記式。手を動かす教材を HTML にしたいときに使う。先に generate-lesson-yaml で YAML を作る。
+description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）から、オフラインで完結するハンズオン教材の HTML バンドルを作る。出力はコース一覧（概要＋コースカード＋コース追加プロンプト）と、コースごとの 1 ページ（左に Step ナビ、右にその Step の内容、左上に戻るボタン）。画面に出る文章のうちタイトルとソースコード以外は、このスキルが受講者向けに書き起こす（narration JSON）。lesson.yaml は記録であって教材の本文ではないため、そのまま転記しない。出典は各 Step からリンクで出典一覧に飛べ、日本語の要旨と公式の原文を併記する。origin などの作り手向けメタ情報は画面に出さず、ビルド時の検査に使う。HTML はテンプレート固定で、AI が HTML を書くことはない。コースは追記式。手を動かす教材を HTML にしたいときに使う。先に generate-lesson-yaml で YAML を作る。
 ---
 
 # generate-lesson-html
@@ -11,7 +11,7 @@ description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）�
 ```
 index.yaml（doc-index/v1・任意）
 lesson.yaml + evidence.yaml（generate-lesson-yaml の出力・1 コースにつき 1 組）
-copy JSON（このスキルが書く受講者向けの文章）
+narration JSON（このスキルが書く受講者向けの文章）
         ↓ テンプレートに流し込む
 バンドル: index.html            コース一覧（概要 / コース / コース追加プロンプト）
           views/<course>.html   コース本体（左: Step ナビ / 右: その Step / 左上: 戻る）
@@ -27,7 +27,7 @@ copy JSON（このスキルが書く受講者向けの文章）
 | 画面に出るもの | どこから来るか |
 |---|---|
 | タイトル、ファイルパス、ソースコード、前提、確認の種別、出典の原文 | `lesson.yaml` / `evidence.yaml` |
-| 導入・コードの説明・注意書き・確認の言い回し・出典の日本語要旨 | **copy JSON（書き起こす）** |
+| 導入・コードの説明・注意書き・確認の言い回し・出典の日本語要旨 | **narration JSON（書き起こす）** |
 | `origin` / `origin_note` / `needs_facts` / fact の id / YAML のファイル名 | **画面に出さない** |
 
 `origin` は消えたわけではない。**ビルド時に規則を検査**し、違反を警告として作り手に出す。
@@ -50,7 +50,7 @@ copy JSON（このスキルが書く受講者向けの文章）
 `generate-explainer-html` は**組み立て役**で、ビューの HTML は AI が毎回書き起こす。
 このスキルは**レンダラ**で、HTML は `templates/` に固定されている。
 
-- **AI は HTML を書かない。** 書くのは文章（copy JSON）だけ。マークアップの唯一の出所は
+- **AI は HTML を書かない。** 書くのは文章（narration JSON）だけ。マークアップの唯一の出所は
   `templates/index.html` と `templates/course.html`。レイアウトを変えたいときは
   **テンプレートを直す**（生成物を手で直さない）。
 - **iframe を使わない。** コースは普通のリンクで開く 1 ページで、戻るボタンで一覧に戻る。
@@ -63,7 +63,7 @@ copy JSON（このスキルが書く受講者向けの文章）
 <bundle>/
   index.html                 コース一覧。views/<course>.html へリンクする
   courses.json               コースの順序付きマニフェスト
-  copy.json                  受講者向けの文章（--copy をマージして保存・再ビルドで保持）
+  narration.json                  受講者向けの文章（--narration をマージして保存・再ビルドで保持）
   prompts.json               コース追加プロンプト（コピーされる）
   index.yaml                 コピーされる（対応環境の取得元。プロンプトが絶対パスで引用）
   courses/<course>/lesson.yaml
@@ -80,8 +80,8 @@ copy JSON（このスキルが書く受講者向けの文章）
    絶対パス、および元になった `index.yaml`。無ければ先に `generate-lesson-yaml` を
    実行する（索引が無ければ `generate-doc-index` から）。
 
-2. **受講者向けの文章を書き起こす（このスキルの本体）。** copy JSON を書く。
-   形とルールは `references/copy-contract.md`、実例は `references/sample-copy.json`。
+2. **受講者向けの文章を書き起こす（このスキルの本体）。** narration JSON を書く。
+   形とルールは `references/narration-contract.md`、実例は `references/sample-narration.json`。
 
    - コース一覧の概要、コースの導入、各 Step の導入、各コードの説明、注意書き、確認の
      言い回し、各出典の日本語要旨。
@@ -99,9 +99,9 @@ copy JSON（このスキルが書く受講者向けの文章）
 
 4. **バンドルをビルドする。** `scripts/build_lesson_html.py`（下記）。
 
-5. **警告を読む。** ビルドは次を警告する。**警告が出たら YAML か copy を直す。**
+5. **警告を読む。** ビルドは次を警告する。**警告が出たら YAML か narration を直す。**
    HTML 側で辻褄を合わせない。
-   - copy が無い箇所（その項目は YAML の転記になっている）
+   - narration が無い箇所（その項目は YAML の転記になっている）
    - `origin` の規則違反（`source_refs` の件数 / `origin_note` の有無）
    - 存在しない `source_refs`、どこからも参照されない fact、`step.id` の重複
 
@@ -115,11 +115,11 @@ copy JSON（このスキルが書く受講者向けの文章）
 
 ```bash
 python3 scripts/build_lesson_html.py --bundle <dir> \
-  --lesson /abs/path/lessons/<新しいコース> --copy /abs/path/<新しい copy>.json
+  --lesson /abs/path/lessons/<新しいコース> --narration /abs/path/<新しい narration>.json
 ```
 
 `courses.json` に追記され、`index.html` にカードが 1 枚増える。既存のコースページ・
-`index.yaml`・`prompts.json`・既存の文章はそのまま残る（copy はマージされる）。
+`index.yaml`・`prompts.json`・既存の文章はそのまま残る（narration はマージされる）。
 
 ## スクリプトの使い方
 
@@ -128,7 +128,7 @@ python3 scripts/build_lesson_html.py \
   --bundle ./lesson-bundle \
   --index /abs/path/index.yaml \
   --lesson /abs/path/lessons/spotlight \
-  --copy /abs/path/copy.json \
+  --narration /abs/path/narration.json \
   --prompts references/sample-prompts.json
 ```
 
@@ -138,7 +138,7 @@ python3 scripts/build_lesson_html.py \
   （`sample-lesson.yaml` → `sample-evidence.yaml` のような対応も見る）。
   `--lesson "コースID=パス"` で URL / ファイル名になる id を明示できる（既定は
   `project.name` から作る）。
-- `--copy` は受講者向けの文章。バンドルの `copy.json` に**マージ**され、省略すると
+- `--narration` は受講者向けの文章。バンドルの `narration.json` に**マージ**され、省略すると
   保存済みのものが使われる。部分的に渡してよい。
 - `--index` は対応環境のチップとプロンプトの参照先に使う。概要文には使わない
   （英語の原文を転記しないため）。
@@ -160,9 +160,9 @@ python3 scripts/validate_html.py ./lesson-bundle/index.html ./lesson-bundle/view
 
 ## うまくいかないとき
 
-- **`copy.courses['…'] がありません`** — そのコースの文章が未執筆で、画面が `lesson.yaml` の
-  転記になっている。copy JSON を書いて `--copy` で渡す。
-- **`copy.facts に '…' の日本語要旨がありません`** — 出典一覧にその項目の要旨が出ない。
+- **`narration.courses['…'] がありません`** — そのコースの文章が未執筆で、画面が `lesson.yaml` の
+  転記になっている。narration JSON を書いて `--narration` で渡す。
+- **`narration.facts に '…' の日本語要旨がありません`** — 出典一覧にその項目の要旨が出ない。
 - **`build_lesson_html.py: could not parse …`** — 同梱の YAML ローダ（`mini_yaml.py`）は
   サブセット実装。アンカー（`&` / `*`）・タグ（`!!`）・複数ドキュメントは未対応。行番号が出る。
 - **`evidence.yaml が隣にありません`** — 出典が空のバンドルになる。`lesson.yaml` と同じ
@@ -183,19 +183,19 @@ python3 scripts/build_lesson_html.py \
   --bundle ./sample-bundle \
   --index ../generate-doc-index/references/sample-index.yaml \
   --lesson ../generate-lesson-yaml/references/sample-lesson.yaml \
-  --copy references/sample-copy.json \
+  --narration references/sample-narration.json \
   --prompts references/sample-prompts.json
 
 python3 scripts/validate_html.py ./sample-bundle/index.html ./sample-bundle/views/*.html --strict
 ```
 
 `sample-bundle/index.html` を開くと、App Intents の索引から作った 1 コース（4 手順・
-出典 6 件）が並ぶ。`sample-copy.json` が、期待する文章の密度と文体の実例になっている。
+出典 6 件）が並ぶ。`sample-narration.json` が、期待する文章の密度と文体の実例になっている。
 
 ## 参照
 
-- `references/copy-contract.md` — **受講者向け原稿（copy JSON）の形と書き方**
-- `references/sample-copy.json` — 4 手順分の原稿の実例
+- `references/narration-contract.md` — **受講者向け原稿（narration JSON）の形と書き方**
+- `references/sample-narration.json` — 4 手順分の原稿の実例
 - `references/template-contract.md` — テンプレートの差し込み口と、何を画面に出す / 出さないか
 - `references/bundle-structure.md` — バンドルの構造と 2 つの画面
 - `references/html-generation-rules.md` — 安全性・オフライン・テーマ・アクセシビリティの規約

@@ -23,11 +23,11 @@ templates/course.html   コース 1 つ分のページ
 
 | トークン | 中身 | 元データ |
 |---|---|---|
-| `__TITLE__` | ページ見出し | `copy.overview.title` →（無ければ）`index.yaml` の `source.root_title` |
-| `__OVERVIEW_BODY__` | 概要本文 + 補足 | `copy.overview.lead` / `notes` |
+| `__TITLE__` | ページ見出し | `narration.overview.title` →（無ければ）`index.yaml` の `source.root_title` |
+| `__OVERVIEW_BODY__` | 概要本文 + 補足 | `narration.overview.lead` / `notes` |
 | `__OVERVIEW_META__` | 対応環境のチップ列 | `index.yaml` の `source.availability` |
-| `__SOURCE_NOTE__` | 出典表記 | `copy.overview.source_note` →（無ければ）`source.site` |
-| `__COURSE_CARDS__` | コースカード | `courses.json` + `copy.courses.<id>.summary` |
+| `__SOURCE_NOTE__` | 出典表記 | `narration.overview.source_note` →（無ければ）`source.site` |
+| `__COURSE_CARDS__` | コースカード | `courses.json` + `narration.courses.<id>.summary` |
 | `__PROMPT_CARDS__` | コース追加プロンプト（教材を作る人向け） | `prompts.json` |
 
 ## `templates/course.html` の差し込み口
@@ -45,10 +45,10 @@ templates/course.html   コース 1 つ分のページ
 ## 画面に出るもの / 出ないもの
 
 **`lesson.yaml` / `evidence.yaml` から出るのは、事実そのもの**（タイトル・パス・コード・
-前提・確認の種別・出典）。**受講者が読む文章は copy JSON から出る**
-（→ `copy-contract.md`）。
+前提・確認の種別・出典）。**受講者が読む文章は narration JSON から出る**
+（→ `narration-contract.md`）。
 
-| 画面の場所 | 事実（YAML） | 文章（copy） |
+| 画面の場所 | 事実（YAML） | 文章（narration） |
 |---|---|---|
 | コースカード | `goal.title` / 手順数 / `stack` | `summary` |
 | 概要ページ | 手順数・`stack`・前提・下ごしらえ・扱う範囲 | `lead` / `goal` / `notes` / 各リストの書き直し |
@@ -76,6 +76,6 @@ templates/course.html   コース 1 つ分のページ
 
 ## 文章の描画
 
-- `copy` の文字列は**空行で段落に分割**され、`` `…` `` は `<code>` になる。
+- `narration` の文字列は**空行で段落に分割**され、`` `…` `` は `<code>` になる。
 - それ以外の記法（見出し、リスト、リンク）は解釈しない。構造が要るなら、テンプレートと
   レンダラの側に項目を足す。

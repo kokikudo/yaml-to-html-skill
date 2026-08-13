@@ -2,8 +2,8 @@
 """build_lesson_html.py
 
 Render a hands-on **lesson bundle** from ``index.yaml`` (doc-index/v1), one or more
-``lesson.yaml`` / ``evidence.yaml`` pairs (lesson/v1 + evidence/v1), and a **copy file**
-(``--copy``) holding the reader-facing Japanese prose.
+``lesson.yaml`` / ``evidence.yaml`` pairs (lesson/v1 + evidence/v1), and a **narration file**
+(``--narration``) holding the reader-facing Japanese prose.
 
 Two kinds of input, on purpose
 ------------------------------
@@ -11,7 +11,7 @@ Two kinds of input, on purpose
 verbatim it reads like a spec, not like teaching material. So the page takes:
 
 - **from the YAML** — titles, file paths, source code, requirements, checkpoints, sources;
-- **from the copy file** — every explanatory sentence the learner reads (course lead-in,
+- **from the narration file** — every explanatory sentence the learner reads (course lead-in,
   per-step lead-in, per-file explanation, cautions, checkpoint wording, and the Japanese
   gist of each quoted source).
 
@@ -30,7 +30,7 @@ What it produces
     <bundle>/
       index.html               course list; links to views/<course>.html
       courses.json             ordered manifest: {"courses":[{id,title,file,...}, ...]}
-      copy.json                the merged reader-facing prose (reused on later builds)
+      narration.json           the merged reader-facing prose (reused on later builds)
       prompts.json             copied in (the "add a course" templates)
       index.yaml               copied in (its absolute path is cited by the prompts)
       courses/<course>/lesson.yaml
@@ -46,7 +46,7 @@ the existing ones untouched; re-running with an existing course id updates that 
 Placeholder substitution (paths, not content)
 ----------------------------------------------
 Prompt strings in ``prompts.json`` may contain ``{{index_yaml_path}}``,
-``{{bundle_dir}}``, ``{{courses_dir}}``, ``{{lesson_yaml_paths}}``, ``{{copy_json_path}}``
+``{{bundle_dir}}``, ``{{courses_dir}}``, ``{{lesson_yaml_paths}}``, ``{{narration_json_path}}``
 and ``{{build_script_path}}``. They are replaced with absolute paths so a
 local-file-reading AI can open them. YAML *content* is never embedded in a prompt.
 
@@ -56,7 +56,7 @@ Example
       --bundle ./lesson-bundle \
       --index /abs/path/index.yaml \
       --lesson /abs/path/lessons/spotlight \
-      --copy /abs/path/copy.json \
+      --narration /abs/path/narration.json \
       --prompts references/sample-prompts.json
 """
 
@@ -109,7 +109,7 @@ _CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 def inline(text: object) -> str:
     """Escape text, then turn `backticked` proper nouns into <code> spans.
 
-    Type names, API names and file names are wrapped in backticks by the copy author so
+    Type names, API names and file names are wrapped in backticks by the narration author so
     they stand out in a wall of Japanese prose.
     """
     return _CODE_SPAN_RE.sub(r"<code>\1</code>", esc(text))
@@ -237,7 +237,7 @@ def fact_links(refs: object, facts: dict[str, dict], missing: list[str],
 # course page rendering
 # ---------------------------------------------------------------------------
 
-def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
+def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
                           missing: list[str], warnings: list[str], course_id: str) -> str:
     goal = as_dict(lesson.get("goal"))
     project = as_dict(lesson.get("project"))
@@ -246,18 +246,18 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
                         f'  <h2>{inline(goal.get("title") or "概要")}</h2>']
 
     if scope.get("truncated"):
-        reason = copy.get("truncated_note") or scope.get("truncated_reason")
+        reason = narration.get("truncated_note") or scope.get("truncated_reason")
         parts.append(
             '  <div class="banner"><strong>このコースは途中までです。</strong> '
             f'{inline(reason)}</div>'
         )
 
-    lead = copy.get("lead")
+    lead = narration.get("lead")
     if not lead:
-        warnings.append(f"{course_id}: copy に lead がありません（概要が YAML の転記になります）")
+        warnings.append(f"{course_id}: 解説文に lead がありません（概要が YAML の転記になります）")
     parts.append(prose(lead or goal.get("outcome"), "lead"))
 
-    goal_text = copy.get("goal") or goal.get("outcome")
+    goal_text = narration.get("goal") or goal.get("outcome")
     if goal_text:
         parts.append('  <h3>このコースを終えたときの状態</h3>')
         parts.append(prose(goal_text))
@@ -269,12 +269,12 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
     parts.append(f'  <div class="chips">{"".join(chips)}</div>')
 
     requirements = [r for r in as_list(project.get("requirements")) if isinstance(r, dict)]
-    if requirements or copy.get("requirements"):
+    if requirements or narration.get("requirements"):
         parts.append("  <h3>始める前に必要なもの</h3>")
-        if copy.get("requirements_lead"):
-            parts.append(prose(copy["requirements_lead"]))
+        if narration.get("requirements_lead"):
+            parts.append(prose(narration["requirements_lead"]))
         parts.append('  <ul class="plain-list">')
-        rewritten = as_list(copy.get("requirements"))
+        rewritten = as_list(narration.get("requirements"))
         for position, requirement in enumerate(requirements):
             text = rewritten[position] if position < len(rewritten) else requirement.get("text")
             refs = fact_links(requirement.get("source_refs"), facts, missing, "出典")
@@ -283,16 +283,16 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
             parts.append(f"    <li>{inline(extra)}</li>")
         parts.append("  </ul>")
 
-    scaffold_steps = as_list(copy.get("scaffold")) or \
+    scaffold_steps = as_list(narration.get("scaffold")) or \
         as_list(as_dict(project.get("scaffold")).get("steps"))
     if scaffold_steps:
         parts.append("  <h3>下ごしらえ（プロジェクトの用意）</h3>")
-        if copy.get("scaffold_lead"):
-            parts.append(prose(copy["scaffold_lead"]))
+        if narration.get("scaffold_lead"):
+            parts.append(prose(narration["scaffold_lead"]))
         parts.append("  <ol>" + "".join(f"<li>{inline(s)}</li>" for s in scaffold_steps) + "</ol>")
 
-    covers = as_list(copy.get("covers")) or as_list(scope.get("covers"))
-    excludes = as_list(copy.get("excludes")) or as_list(scope.get("excludes"))
+    covers = as_list(narration.get("covers")) or as_list(scope.get("covers"))
+    excludes = as_list(narration.get("excludes")) or as_list(scope.get("excludes"))
     if covers or excludes:
         parts.append("  <h3>このコースで扱うこと</h3>")
         if covers:
@@ -301,7 +301,7 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
             parts.append('  <p class="muted">扱わないこと</p>')
             parts.append("  <ul>" + "".join(f"<li>{inline(x)}</li>" for x in excludes) + "</ul>")
 
-    for note in as_list(copy.get("notes")):
+    for note in as_list(narration.get("notes")):
         parts.append(f'  <div class="note">{inline(note)}</div>')
 
     parts.append("</article>")
@@ -309,21 +309,21 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], copy: dict,
 
 
 def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict],
-                      copy: dict, missing: list[str], warnings: list[str],
+                      narration: dict, missing: list[str], warnings: list[str],
                       course_id: str) -> str:
     step_id = str(step.get("id") or f"step-{number}")
     parts: list[str] = [f'<article class="panel hidden" id="panel-{esc(step_id)}">',
                         f'  <p class="eyebrow">Step {number} / {total}</p>',
                         f'  <h2>{inline(step.get("title") or step_id)}</h2>']
 
-    lead = copy.get("lead")
+    lead = narration.get("lead")
     if not lead:
-        warnings.append(f"{course_id}/{step_id}: copy に lead がありません"
+        warnings.append(f"{course_id}/{step_id}: 解説文に lead がありません"
                         "（導入文が YAML の転記になります）")
     parts.append(f'  <div class="lead-box">{prose(lead or step.get("why"))}</div>')
 
     files = [f for f in as_list(step.get("files")) if isinstance(f, dict)]
-    file_copy = as_dict(copy.get("files"))
+    file_narration = as_dict(narration.get("files"))
     all_refs: list[str] = []
     if files:
         parts.append("  <h3>書くコード</h3>")
@@ -333,7 +333,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         action_label = ACTION_LABELS.get(str(file_item.get("action", "")), "")
         lang = file_item.get("lang")
         all_refs.extend(str(r) for r in as_list(file_item.get("source_refs")) if r)
-        explanation = file_copy.get(path) or file_copy.get(Path(path).name)
+        explanation = file_narration.get(path) or file_narration.get(Path(path).name)
         parts.append('  <div class="file">')
         parts.append('    <div class="file-head">')
         parts.append(f'      <code class="file-path">{esc(path)}</code>')
@@ -351,7 +351,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         parts.append(f'    <pre class="code" id="{code_id}">{esc(file_item.get("content", ""))}</pre>')
         parts.append("  </div>")
 
-    for note in as_list(copy.get("notes")):
+    for note in as_list(narration.get("notes")):
         parts.append(f'  <div class="note">{inline(note)}</div>')
 
     checkpoint = as_dict(step.get("checkpoint"))
@@ -362,7 +362,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         parts.append("  <h3>ここまでの確認</h3>")
         parts.append('  <div class="checkpoint">')
         parts.append(f'    <span class="badge check" title="{esc(meaning)}">{esc(label)}</span>')
-        parts.append(prose(copy.get("checkpoint") or checkpoint.get("expect"), "expect"))
+        parts.append(prose(narration.get("checkpoint") or checkpoint.get("expect"), "expect"))
         parts.append("  </div>")
 
     errors = [e for e in as_list(step.get("common_errors")) if isinstance(e, dict)]
@@ -395,7 +395,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
     return "\n".join(p for p in parts if p)
 
 
-def render_evidence_panel(lesson: dict, facts: dict[str, dict], copy: dict,
+def render_evidence_panel(lesson: dict, facts: dict[str, dict], narration: dict,
                           warnings: list[str], course_id: str) -> str:
     """The last nav entry: every quoted source, gist first, original text alongside."""
     used_by: dict[str, list[str]] = {}
@@ -422,10 +422,10 @@ def render_evidence_panel(lesson: dict, facts: dict[str, dict], copy: dict,
             if isinstance(error, dict) and error.get("source_ref"):
                 note_use([error["source_ref"]], where)
 
-    gists = as_dict(copy.get("facts"))
+    gists = as_dict(narration.get("facts"))
     parts = ['<article class="panel hidden" id="panel-evidence">',
              "  <h2>出典一覧</h2>",
-             prose(copy.get("lead") or
+             prose(narration.get("lead") or
                    "このコースの説明とコードが、公式ドキュメントのどの記述に基づいているかの"
                    "一覧です。各手順の「この手順のもとになった資料」から、ここへ飛べます。")]
     if not facts:
@@ -435,7 +435,7 @@ def render_evidence_panel(lesson: dict, facts: dict[str, dict], copy: dict,
         source = as_dict(fact.get("source"))
         gist = gists.get(fact_id)
         if not gist:
-            warnings.append(f"{course_id}: copy.facts に '{fact_id}' の日本語要旨がありません")
+            warnings.append(f"{course_id}: 解説文の evidence.facts に '{fact_id}' の日本語要旨がありません")
         kind = FACT_KIND_LABELS.get(str(fact.get("kind", "")), str(fact.get("kind", "")))
         meta = ["ページ: " + str(source.get("page_title", "")) if source.get("page_title") else ""]
         if source.get("fetched_at"):
@@ -476,7 +476,7 @@ def render_nav(items: list[tuple[str, str, str]]) -> str:
     return "\n        ".join(lis)
 
 
-def render_course_page(lesson: dict, evidence: dict, copy: dict, back_href: str,
+def render_course_page(lesson: dict, evidence: dict, narration: dict, back_href: str,
                        warnings: list[str], course_id: str) -> tuple[str, dict]:
     """Render one views/<course>.html; return (html, summary)."""
     template = load_template("course.html")
@@ -485,18 +485,18 @@ def render_course_page(lesson: dict, evidence: dict, copy: dict, back_href: str,
 
     goal = as_dict(lesson.get("goal"))
     steps = [s for s in as_list(lesson.get("steps")) if isinstance(s, dict)]
-    step_copy = as_dict(copy.get("steps"))
+    step_narration = as_dict(narration.get("steps"))
 
     nav_items: list[tuple[str, str, str]] = [("overview", "概", "コースの概要")]
-    panels = [render_overview_panel(lesson, facts, copy, missing, warnings, course_id)]
+    panels = [render_overview_panel(lesson, facts, narration, missing, warnings, course_id)]
     for number, step in enumerate(steps, start=1):
         step_id = str(step.get("id") or f"step-{number}")
         nav_items.append((step_id, str(number), str(step.get("title") or step_id)))
         panels.append(render_step_panel(step, number, len(steps), facts,
-                                        as_dict(step_copy.get(step_id)), missing,
+                                        as_dict(step_narration.get(step_id)), missing,
                                         warnings, course_id))
     nav_items.append(("evidence", "典", "出典一覧"))
-    panels.append(render_evidence_panel(lesson, facts, as_dict(copy.get("evidence")),
+    panels.append(render_evidence_panel(lesson, facts, as_dict(narration.get("evidence")),
                                         warnings, course_id))
 
     for ref in dict.fromkeys(missing):
@@ -511,7 +511,7 @@ def render_course_page(lesson: dict, evidence: dict, copy: dict, back_href: str,
 
     summary = {
         "title": str(goal.get("title") or course_id),
-        "summary": str(copy.get("summary") or goal.get("outcome") or ""),
+        "summary": str(narration.get("summary") or goal.get("outcome") or ""),
         "stack": str(as_dict(lesson.get("project")).get("stack") or ""),
         "steps": len(steps),
         "facts": len(facts),
@@ -525,28 +525,28 @@ def render_course_page(lesson: dict, evidence: dict, copy: dict, back_href: str,
 # index page rendering
 # ---------------------------------------------------------------------------
 
-def render_overview_section(index_data: dict | None, copy: dict,
+def render_overview_section(index_data: dict | None, narration: dict,
                             warnings: list[str]) -> tuple[str, str, str, str]:
     """Return (page title, overview body, meta chips, closing note)."""
     source = as_dict((index_data or {}).get("source"))
-    title = str(copy.get("title") or source.get("root_title") or "ハンズオン教材")
+    title = str(narration.get("title") or source.get("root_title") or "ハンズオン教材")
 
-    lead = copy.get("lead")
+    lead = narration.get("lead")
     if lead:
         body = prose(lead)
     else:
-        warnings.append("copy.overview.lead がありません（コース一覧の概要が空になります）")
+        warnings.append("解説文の overview.lead がありません（コース一覧の概要が空になります）")
         body = ('<p class="empty">このコース一覧の概要はまだ書かれていません。'
-                '--copy に overview.lead を渡してください。</p>')
-    for note in as_list(copy.get("notes")):
+                '--narration に overview.lead を渡してください。</p>')
+    for note in as_list(narration.get("notes")):
         body += f'\n<div class="note">{inline(note)}</div>'
 
     chips = [f'<span class="chip">{esc(a)}</span>' for a in as_list(source.get("availability"))]
     meta = f'<div class="chips">{"".join(chips)}</div>' if chips else ""
 
     note = ""
-    if copy.get("source_note"):
-        note = f'<p class="source-note">{inline(copy["source_note"])}</p>'
+    if narration.get("source_note"):
+        note = f'<p class="source-note">{inline(narration["source_note"])}</p>'
     elif source.get("site"):
         note = (f'<p class="source-note">出典: {esc(source["site"])}'
                 f'{" / " + esc(source["root_path"]) if source.get("root_path") else ""}</p>')
@@ -702,17 +702,17 @@ def write_manifest(bundle: Path, courses: list[dict]) -> None:
         json.dumps({"courses": courses}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def load_copy(bundle: Path, copy_arg: str | None) -> dict:
-    """Merge the passed copy file into whatever the bundle already holds, and store it."""
+def load_narration(bundle: Path, narration_arg: str | None) -> dict:
+    """Merge the passed narration file into whatever the bundle already holds, and store it."""
     stored: dict = {}
-    dest = bundle / "copy.json"
+    dest = bundle / "narration.json"
     if dest.is_file():
-        data = load_json(dest, "copy.json")
+        data = load_json(dest, "narration.json")
         stored = data if isinstance(data, dict) else {}
-    if copy_arg:
-        data = load_json(copy_arg, "copy file")
+    if narration_arg:
+        data = load_json(narration_arg, "narration file")
         if not isinstance(data, dict):
-            raise SystemExit("build_lesson_html.py: the copy file must contain a JSON object")
+            raise SystemExit("build_lesson_html.py: the narration file must contain a JSON object")
         stored = deep_merge(stored, data)
         dest.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n",
                         encoding="utf-8")
@@ -766,8 +766,8 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
 
     warnings: list[str] = []
     manifest = load_manifest(bundle)
-    copy = load_copy(bundle, args.copy)
-    course_copy = as_dict(copy.get("courses"))
+    narration = load_narration(bundle, args.narration)
+    course_narration = as_dict(narration.get("courses"))
 
     # --- courses (additive: append new, update existing in place) ---
     for forced_name, spec_path in parse_lesson_specs(args.lesson or []):
@@ -780,14 +780,14 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
         project_name = as_dict(lesson.get("project")).get("name")
         goal_title = as_dict(lesson.get("goal")).get("title")
         course_id = slugify(forced_name or project_name or goal_title or lesson_path.parent.name)
-        this_copy = as_dict(course_copy.get(course_id))
-        if not this_copy:
-            warnings.append(f"{course_id}: copy.courses['{course_id}'] がありません"
+        this_narration = as_dict(course_narration.get(course_id))
+        if not this_narration:
+            warnings.append(f"{course_id}: 解説文に courses['{course_id}'] がありません"
                             "（受講者向けの文章が YAML の転記になります）")
 
         facts = index_facts(evidence)
         check_lesson(lesson, facts, course_id, warnings)
-        page, summary = render_course_page(lesson, evidence, this_copy, "../index.html",
+        page, summary = render_course_page(lesson, evidence, this_narration, "../index.html",
                                            warnings, course_id)
 
         (bundle / "views" / f"{course_id}.html").write_text(page, encoding="utf-8")
@@ -840,12 +840,12 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
         "bundle_dir": str(bundle.resolve()),
         "courses_dir": str((bundle / "courses").resolve()),
         "lesson_yaml_paths": lesson_paths or "(コースがありません)",
-        "copy_json_path": str((bundle / "copy.json").resolve()),
+        "narration_json_path": str((bundle / "narration.json").resolve()),
         "build_script_path": str(Path(__file__).resolve()),
     }
 
     title, overview_body, overview_meta, source_note = render_overview_section(
-        index_data, as_dict(copy.get("overview")), warnings)
+        index_data, as_dict(narration.get("overview")), warnings)
     if args.title:
         title = args.title
 
@@ -867,7 +867,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="build_lesson_html.py",
         description=(
             "Render a hands-on lesson bundle from index.yaml + lesson.yaml/evidence.yaml "
-            "plus a copy file holding the reader-facing prose. The markup lives in "
+            "plus a narration file holding the reader-facing prose. The markup lives in "
             "templates/; this script fills it in. A new --lesson appends a course."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -877,7 +877,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "    --bundle ./lesson-bundle \\\n"
             "    --index ../generate-doc-index/references/sample-index.yaml \\\n"
             "    --lesson ../generate-lesson-yaml/references/sample-lesson.yaml \\\n"
-            "    --copy references/sample-copy.json \\\n"
+            "    --narration references/sample-narration.json \\\n"
             "    --prompts references/sample-prompts.json\n"
         ),
     )
@@ -885,10 +885,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lesson", action="append", default=[], metavar="[NAME=]PATH",
                         help="a course: a lesson directory (lesson.yaml + evidence.yaml) or a "
                              "lesson.yaml path; repeatable, appends/updates each run")
-    parser.add_argument("--copy", help="path to the copy JSON: every sentence the learner "
+    parser.add_argument("--narration", help="path to the narration JSON: every sentence the learner "
                                        "reads (course/step lead-ins, cautions, checkpoint "
                                        "wording, Japanese gist per source). Merged into the "
-                                       "bundle's copy.json and reused when omitted")
+                                       "bundle's narration.json and reused when omitted")
     parser.add_argument("--index", help="path to index.yaml (doc-index/v1); supplies the "
                                         "availability chips and is cited by the prompts")
     parser.add_argument("--prompts", help="path to prompts.json (the 'add a course' templates); "
