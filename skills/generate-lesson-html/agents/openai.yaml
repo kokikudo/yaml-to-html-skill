@@ -1,24 +1,24 @@
 # Portable agent definition for the generate-lesson-html skill.
 # This describes the skill for non-Claude (e.g. OpenAI-style) agent runtimes.
 # It mirrors SKILL.md: read lesson.yaml/evidence.yaml by path, WRITE the learner-facing
-# Japanese prose (the copy JSON), and render both into a fixed-template, offline hands-on
-# lesson bundle. The model authors prose, never HTML.
+# Japanese prose (the narration JSON), and render both into a fixed-template, offline
+# hands-on lesson bundle. The model authors prose, never HTML.
 
 name: generate-lesson-html
 version: 1
 description: >
   Turn lesson.yaml + evidence.yaml (from generate-lesson-yaml), optionally with the
   index.yaml they came from, into a self-contained hands-on lesson bundle. The bundle is a
-  directory: a course list (overview + course cards + "add a course" prompt templates) and
-  one page per course (left: step nav, right: the current step, top-left: back to the list).
+  directory: a course list (overview + course cards) and one page per course (left: step
+  nav, right: the current step, top-left: back to the list).
   lesson.yaml is a RECORD, not the lesson text: everything the learner reads except titles
-  and source code is newly written by this skill into a copy JSON (course/step lead-ins,
-  per-file explanations, cautions, checkpoint wording, and a Japanese gist for every quoted
-  source). Author metadata (origin, fact ids, YAML file names) never reaches the UI; the
-  origin rules are still checked and reported as build warnings. Sources are one tap away:
-  each step links into the sources page, where the Japanese gist sits next to the official
-  original text. The markup lives in templates/ — this skill renders, it never authors HTML.
-  Courses are additive.
+  and source code is newly written by this skill into a narration JSON (course/step
+  lead-ins, per-file explanations, cautions, checkpoint wording, and a Japanese gist for
+  every quoted source). Author metadata (origin, fact ids, YAML file names) never reaches
+  the UI; the origin rules are still checked and reported as build warnings. Sources are
+  one tap away: each step links into the sources page, where the Japanese gist sits next to
+  the official original text. The markup lives in templates/ — this skill renders, it never
+  authors HTML. Courses are additive.
 
 use_when:
   - user has (or wants) a lesson.yaml/evidence.yaml pair and wants a hands-on HTML course
@@ -33,36 +33,30 @@ model:
   recommended: gpt-4-class or stronger
   temperature: 0.4
   notes: >
-    The model writes the learner-facing prose (which needs some warmth) and the "add a
-    course" prompt templates, then runs the two scripts. The HTML itself comes from
-    templates + renderer. Prose may be lively; facts may not be invented.
+    The model writes the learner-facing prose (which needs some warmth), then runs the two
+    scripts. The HTML itself comes from templates + renderer. Prose may be lively; facts
+    may not be invented.
 
 workflow:
   - id: read_yaml
     goal: read lesson.yaml, its sibling evidence.yaml, and (when available) index.yaml by
       absolute path; if the lesson YAML is missing, defer to generate-lesson-yaml
-  - id: write_copy
-    goal: write the learner-facing Japanese prose as a copy JSON — course-list overview,
-      course lead-in, per-step lead-in ("why now", linking back to the previous step),
-      per-file explanation, cautions, checkpoint wording, and a gist per quoted source.
-      Spoken-style です・ます; proper nouns in backticks; never transcribe lesson.yaml's
-      why/outcome/expect; never add facts the YAML does not carry; never mention origin,
-      fact ids or YAML file names
-    rules: references/copy-contract.md
-    example: references/sample-copy.json
-  - id: author_prompts_json
-    goal: author the "add a course" templates (add / extend a truncated course / re-aim at a
-      different reader / free-form); cite paths via {{index_yaml_path}}, {{bundle_dir}},
-      {{courses_dir}}, {{lesson_yaml_paths}}, {{copy_json_path}}, {{build_script_path}};
-      never embed YAML or copy content; require the copy JSON to be written too
-    rules: references/prompt-template-patterns.md
+  - id: write_narration
+    goal: write the learner-facing Japanese prose as a narration JSON — course-list
+      overview, course lead-in, per-step lead-in ("why now", linking back to the previous
+      step), per-file explanation, cautions, checkpoint wording, and a gist per quoted
+      source. Spoken-style です・ます; proper nouns in backticks; never transcribe
+      lesson.yaml's why/outcome/expect; never add facts the YAML does not carry; never
+      mention origin, fact ids or YAML file names
+    rules: references/narration-contract.md
+    example: references/sample-narration.json
   - id: build
     goal: render the bundle from the templates (course list + one page per course)
     tool: build_lesson_html
   - id: read_warnings
-    goal: read the build warnings (missing copy, origin rules, dangling source_refs,
-      unreferenced facts, duplicate step ids) and fix them in the copy or the YAML — never
-      paper over them in the HTML
+    goal: read the build warnings (missing narration, origin rules, dangling source_refs,
+      unreferenced facts, duplicate step ids) and fix them in the narration or the YAML —
+      never paper over them in the HTML
   - id: validate
     goal: enforce the offline / self-containment contract over index.html and every course page
     tool: validate_html
@@ -71,20 +65,20 @@ workflow:
       origin breakdown to the AUTHOR (the authored ratio characterises the material) even
       though it never appears in the UI
   - id: add_course_later
-    goal: to add a course, produce one more lesson.yaml/evidence.yaml pair plus its copy,
-      and re-run build_lesson_html with only the new --lesson and --copy; it appends a
-      course and preserves the rest
+    goal: to add a course, produce one more lesson.yaml/evidence.yaml pair plus its
+      narration, and re-run build_lesson_html with only the new --lesson and --narration;
+      it appends a course and preserves the rest
 
 tools:
   - name: build_lesson_html
     type: shell
     command: python3 scripts/build_lesson_html.py
     description: >
-      Render the bundle: fill templates/index.html and templates/course.html, copy
-      index.yaml / lesson.yaml / evidence.yaml / prompts.json in, merge the copy JSON into
-      copy.json, merge courses into courses.json. Renderer, not an author — nothing appears
-      on screen that is not in the YAML or the copy. Warns on missing copy, origin-rule
-      violations and broken source_refs.
+      Render the bundle: fill templates/index.html and templates/course.html, duplicate
+      index.yaml / lesson.yaml / evidence.yaml into the bundle, merge the narration JSON
+      into narration.json, merge courses into courses.json. Renderer, not an author —
+      nothing appears on screen that is not in the YAML or the narration. Warns on missing
+      narration, origin-rule violations and broken source_refs.
     args:
       - name: --bundle
         required: true
@@ -93,17 +87,14 @@ tools:
         required: false
         repeatable: true
         description: 'a course: a lesson directory or a lesson.yaml path; "ID=PATH" forces the id'
-      - name: --copy
+      - name: --narration
         required: false
-        description: path to the copy JSON (the learner-facing prose); merged into the
-          bundle's copy.json and reused when omitted
+        description: path to the narration JSON (the learner-facing prose); merged into the
+          bundle's narration.json and reused when omitted
       - name: --index
         required: false
-        description: path to index.yaml (doc-index/v1); supplies the availability chips and
-          is cited by the prompts (its English abstract is never transcribed into the page)
-      - name: --prompts
-        required: false
-        description: path to prompts.json; reused from the bundle when omitted
+        description: path to index.yaml (doc-index/v1); supplies the availability chips
+          (its English abstract is never transcribed into the page)
       - name: --title
         required: false
         description: override the course-list title
@@ -128,9 +119,8 @@ constraints:
   theme: light by default; carried across pages via the link hash (#theme=dark); no storage
   courses: additive — a new --lesson appends a course; same id updates that course in place
   content: titles and source code come from the YAML; every other sentence comes from the
-    copy JSON; the renderer never fills gaps and never invents facts
+    narration JSON; the renderer never fills gaps and never invents facts
   origin: author metadata — checked at build time and reported as warnings, never rendered
-  prompts: cite files by absolute path; never embed YAML or copy content; never ask for HTML
   yaml_loader: scripts/mini_yaml.py (stdlib only) — no anchors, aliases, tags or multi-doc
   forbidden:
     - external <script src> / external CSS / remote iframe
@@ -144,12 +134,11 @@ constraints:
 
 inputs:
   - absolute path to lesson.yaml (its evidence.yaml is found next to it)
-  - absolute path to the copy JSON (written by this skill; merged into the bundle)
+  - absolute path to the narration JSON (written by this skill; merged into the bundle)
   - absolute path to index.yaml (optional; supplies the availability chips)
-  - absolute path to prompts.json (optional; reused from the bundle on re-runs)
 
 outputs:
-  - a bundle directory (index.html + courses.json + copy.json + prompts.json + index.yaml +
+  - a bundle directory (index.html + courses.json + narration.json + index.yaml +
     courses/<course>/*.yaml + views/<course>.html)
 
 open_note: >
@@ -158,12 +147,10 @@ open_note: >
 
 references:
   - SKILL.md
-  - references/copy-contract.md
-  - references/sample-copy.json
+  - references/narration-contract.md
+  - references/sample-narration.json
   - references/bundle-structure.md
   - references/template-contract.md
   - references/html-generation-rules.md
-  - references/prompt-template-patterns.md
-  - references/sample-prompts.json
   - templates/index.html
   - templates/course.html

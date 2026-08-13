@@ -8,7 +8,6 @@
     __OVERVIEW_META__    対応環境などのチップ列（空可）
     __SOURCE_NOTE__      出典表記（空可）
     __COURSE_CARDS__     コースカード（views/<course>.html へのリンク）
-    __PROMPT_CARDS__     「コース追加プロンプト」カード（教材を作る人向け）
 -->
 <html lang="ja">
 <head>
@@ -79,35 +78,8 @@ h3{font-size:16px;margin:0}
 .course-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .course-card .outcome{margin:10px 0 0;color:var(--muted);font-size:14px}
 .course-cta{margin:14px 0 0;color:var(--accent);font-size:13px;font-weight:600}
-.card{
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  padding:14px;margin:0 0 12px;
-}
-.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.card-desc{margin:6px 0 10px;color:var(--muted);font-size:13px}
-.tags{display:flex;gap:4px;flex-wrap:wrap}
-.tag{
-  background:var(--chip);color:var(--accent);border:1px solid var(--border);
-  border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap;
-}
-.prompt-details{margin:0 0 10px}
-.prompt-details summary{cursor:pointer;color:var(--accent);font-size:12px;user-select:none}
-.prompt-details summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.prompt-body{
-  background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
-  padding:10px;margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;
-}
-.copy-btn{
-  background:var(--accent);color:#fff;border:0;border-radius:8px;
-  padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;
-}
-.copy-btn:hover{filter:brightness(1.06)}
-.copy-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
-.copy-btn.copied{background:var(--accent-2)}
 .empty{color:var(--muted);font-size:13px}
 .source-note{color:var(--muted);font-size:12px;margin:16px 0 0}
-.section-note{color:var(--muted);font-size:13px;margin:-6px 0 16px}
 @media (prefers-reduced-motion:reduce){
   *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
 }
@@ -133,15 +105,6 @@ h3{font-size:16px;margin:0}
     <div class="course-list">
       __COURSE_CARDS__
     </div>
-  </section>
-
-  <section aria-labelledby="prompts-heading">
-    <h2 id="prompts-heading">コース追加プロンプト</h2>
-    <p class="section-note">
-      別のコースが欲しいときは、下のテンプレートをコピーして、ローカルのファイルを読める AI
-      （Claude Code 等）に貼り付けてください。既存のコースはそのまま残り、コースが 1 つ増えます。
-    </p>
-    __PROMPT_CARDS__
   </section>
 </main>
 <script>
@@ -181,42 +144,6 @@ h3{font-size:16px;margin:0}
     });
   }
   syncLinks();
-
-  // ---- copy buttons ----
-  function flash(btn){
-    var original = btn.textContent;
-    btn.textContent = "コピーしました";
-    btn.classList.add("copied");
-    setTimeout(function(){ btn.textContent = original; btn.classList.remove("copied"); }, 1400);
-  }
-  function fallbackCopy(text, btn){
-    var ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "absolute";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-    document.body.removeChild(ta);
-    if (ok){ flash(btn); } else { btn.textContent = "コピーできませんでした"; }
-  }
-  var buttons = document.querySelectorAll(".copy-btn");
-  for (var b = 0; b < buttons.length; b++){
-    buttons[b].addEventListener("click", function(){
-      var target = document.getElementById(this.getAttribute("data-target"));
-      if (!target) return;
-      var text = target.textContent;
-      var btn = this;
-      if (navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(text).then(function(){ flash(btn); },
-          function(){ fallbackCopy(text, btn); });
-      } else {
-        fallbackCopy(text, btn);
-      }
-    });
-  }
 })();
 </script>
 </body>

@@ -1,6 +1,6 @@
 ---
 name: generate-lesson-html
-description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）から、オフラインで完結するハンズオン教材の HTML バンドルを作る。出力はコース一覧（概要＋コースカード＋コース追加プロンプト）と、コースごとの 1 ページ（左に Step ナビ、右にその Step の内容、左上に戻るボタン）。画面に出る文章のうちタイトルとソースコード以外は、このスキルが受講者向けに書き起こす（narration JSON）。lesson.yaml は記録であって教材の本文ではないため、そのまま転記しない。出典は各 Step からリンクで出典一覧に飛べ、日本語の要旨と公式の原文を併記する。origin などの作り手向けメタ情報は画面に出さず、ビルド時の検査に使う。HTML はテンプレート固定で、AI が HTML を書くことはない。コースは追記式。手を動かす教材を HTML にしたいときに使う。先に generate-lesson-yaml で YAML を作る。
+description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）から、オフラインで完結するハンズオン教材の HTML バンドルを作る。出力はコース一覧（概要＋コースカード）と、コースごとの 1 ページ（左に Step ナビ、右にその Step の内容、左上に戻るボタン）。画面に出る文章のうちタイトルとソースコード以外は、このスキルが受講者向けに書き起こす（narration JSON）。lesson.yaml は記録であって教材の本文ではないため、そのまま転記しない。出典は各 Step からリンクで出典一覧に飛べ、日本語の要旨と公式の原文を併記する。origin などの作り手向けメタ情報は画面に出さず、ビルド時の検査に使う。HTML はテンプレート固定で、AI が HTML を書くことはない。コースは追記式。手を動かす教材を HTML にしたいときに使う。先に generate-lesson-yaml で YAML を作る。
 ---
 
 # generate-lesson-html
@@ -13,7 +13,7 @@ index.yaml（doc-index/v1・任意）
 lesson.yaml + evidence.yaml（generate-lesson-yaml の出力・1 コースにつき 1 組）
 narration JSON（このスキルが書く受講者向けの文章）
         ↓ テンプレートに流し込む
-バンドル: index.html            コース一覧（概要 / コース / コース追加プロンプト）
+バンドル: index.html            コース一覧（概要 / コース）
           views/<course>.html   コース本体（左: Step ナビ / 右: その Step / 左上: 戻る）
 ```
 
@@ -63,9 +63,8 @@ narration JSON（このスキルが書く受講者向けの文章）
 <bundle>/
   index.html                 コース一覧。views/<course>.html へリンクする
   courses.json               コースの順序付きマニフェスト
-  narration.json                  受講者向けの文章（--narration をマージして保存・再ビルドで保持）
-  prompts.json               コース追加プロンプト（コピーされる）
-  index.yaml                 コピーされる（対応環境の取得元。プロンプトが絶対パスで引用）
+  narration.json             受講者向けの文章（--narration をマージして保存・再ビルドで保持）
+  index.yaml                 複製される（対応環境チップの取得元）
   courses/<course>/lesson.yaml
   courses/<course>/evidence.yaml
   views/<course>.html        コース 1 つ = 1 ページ
@@ -93,22 +92,18 @@ narration JSON（このスキルが書く受講者向けの文章）
      `notes` に置く。
    - **作り手のメタ情報（origin・fact の id・YAML のファイル名）を書かない。**
 
-3. **コース追加プロンプトを用意する。** `prompts.json`（配列）。既定のカードは
-   `references/sample-prompts.json`。各カードはパスを `{{…}}` で引用し、**中身は貼らない**。
-   型は `references/prompt-template-patterns.md`。
+3. **バンドルをビルドする。** `scripts/build_lesson_html.py`（下記）。
 
-4. **バンドルをビルドする。** `scripts/build_lesson_html.py`（下記）。
-
-5. **警告を読む。** ビルドは次を警告する。**警告が出たら YAML か narration を直す。**
+4. **警告を読む。** ビルドは次を警告する。**警告が出たら YAML か narration を直す。**
    HTML 側で辻褄を合わせない。
    - narration が無い箇所（その項目は YAML の転記になっている）
    - `origin` の規則違反（`source_refs` の件数 / `origin_note` の有無）
    - 存在しない `source_refs`、どこからも参照されない fact、`step.id` の重複
 
-6. **検証する。** `scripts/validate_html.py` を `index.html` と全 `views/*.html` に
+5. **検証する。** `scripts/validate_html.py` を `index.html` と全 `views/*.html` に
    `--strict` で実行し、0 で終了するまで直す。
 
-7. **渡す。** バンドルのフォルダと開き方、コース数・手順数を報告する。あわせて
+6. **渡す。** バンドルのフォルダと開き方、コース数・手順数を報告する。あわせて
    `origin` の内訳（特に `authored` の件数）も**作り手向けの情報として**報告する。
 
 ## コースをあとから足す（追記フロー）
@@ -119,7 +114,7 @@ python3 scripts/build_lesson_html.py --bundle <dir> \
 ```
 
 `courses.json` に追記され、`index.html` にカードが 1 枚増える。既存のコースページ・
-`index.yaml`・`prompts.json`・既存の文章はそのまま残る（narration はマージされる）。
+`index.yaml`・既存の文章はそのまま残る（narration はマージされる）。
 
 ## スクリプトの使い方
 
@@ -128,8 +123,7 @@ python3 scripts/build_lesson_html.py \
   --bundle ./lesson-bundle \
   --index /abs/path/index.yaml \
   --lesson /abs/path/lessons/spotlight \
-  --narration /abs/path/narration.json \
-  --prompts references/sample-prompts.json
+  --narration /abs/path/narration.json
 ```
 
 - `--bundle` のみ必須。
@@ -140,9 +134,8 @@ python3 scripts/build_lesson_html.py \
   `project.name` から作る）。
 - `--narration` は受講者向けの文章。バンドルの `narration.json` に**マージ**され、省略すると
   保存済みのものが使われる。部分的に渡してよい。
-- `--index` は対応環境のチップとプロンプトの参照先に使う。概要文には使わない
-  （英語の原文を転記しないため）。
-- `--prompts` / `--index` は省略するとバンドル内の既存ファイルを使う。
+- `--index` は対応環境のチップに使う。概要文には使わない（英語の原文を転記しないため）。
+  省略するとバンドル内の既存 `index.yaml` を使う。
 
 検証（オフライン安全性）:
 
@@ -183,8 +176,7 @@ python3 scripts/build_lesson_html.py \
   --bundle ./sample-bundle \
   --index ../generate-doc-index/references/sample-index.yaml \
   --lesson ../generate-lesson-yaml/references/sample-lesson.yaml \
-  --narration references/sample-narration.json \
-  --prompts references/sample-prompts.json
+  --narration references/sample-narration.json
 
 python3 scripts/validate_html.py ./sample-bundle/index.html ./sample-bundle/views/*.html --strict
 ```
@@ -194,13 +186,11 @@ python3 scripts/validate_html.py ./sample-bundle/index.html ./sample-bundle/view
 
 ## 参照
 
-- `references/narration-contract.md` — **受講者向け原稿（narration JSON）の形と書き方**
-- `references/sample-narration.json` — 4 手順分の原稿の実例
+- `references/narration-contract.md` — **受講者向けの解説文（narration JSON）の形と書き方**
+- `references/sample-narration.json` — 4 手順分の解説文の実例
 - `references/template-contract.md` — テンプレートの差し込み口と、何を画面に出す / 出さないか
 - `references/bundle-structure.md` — バンドルの構造と 2 つの画面
 - `references/html-generation-rules.md` — 安全性・オフライン・テーマ・アクセシビリティの規約
-- `references/prompt-template-patterns.md` — コース追加プロンプトの型とパスの置換
-- `references/sample-prompts.json` — 既定のコース追加プロンプト 4 種
 - `templates/index.html` / `templates/course.html` — 出力される HTML の唯一の出所
 - `scripts/mini_yaml.py` — 標準ライブラリだけの YAML サブセットローダ
 - YAML スキーマ（前段のスキル）: `../generate-lesson-yaml/references/`

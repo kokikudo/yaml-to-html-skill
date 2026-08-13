@@ -28,7 +28,6 @@ templates/course.html   コース 1 つ分のページ
 | `__OVERVIEW_META__` | 対応環境のチップ列 | `index.yaml` の `source.availability` |
 | `__SOURCE_NOTE__` | 出典表記 | `narration.overview.source_note` →（無ければ）`source.site` |
 | `__COURSE_CARDS__` | コースカード | `courses.json` + `narration.courses.<id>.summary` |
-| `__PROMPT_CARDS__` | コース追加プロンプト（教材を作る人向け） | `prompts.json` |
 
 ## `templates/course.html` の差し込み口
 

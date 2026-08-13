@@ -21,7 +21,7 @@ reported as build warnings for the author.
 
 The markup itself lives in ``templates/`` and is the single source of truth for layout:
 
-    templates/index.html    the course list  (概要 + コース + コース追加プロンプト)
+    templates/index.html    the course list  (概要 + コース)
     templates/course.html   one course       (left: Step nav / right: the current Step)
 
 What it produces
@@ -31,8 +31,7 @@ What it produces
       index.html               course list; links to views/<course>.html
       courses.json             ordered manifest: {"courses":[{id,title,file,...}, ...]}
       narration.json           the merged reader-facing prose (reused on later builds)
-      prompts.json             copied in (the "add a course" templates)
-      index.yaml               copied in (its absolute path is cited by the prompts)
+      index.yaml               duplicated into the bundle (source of the availability chips)
       courses/<course>/lesson.yaml
       courses/<course>/evidence.yaml
       views/<course>.html      one full page per course
@@ -43,21 +42,13 @@ returns to the list. That keeps the bundle openable in any browser over ``file:/
 Courses are **additive**. Re-running with one new ``--lesson`` appends a course and leaves
 the existing ones untouched; re-running with an existing course id updates that course.
 
-Placeholder substitution (paths, not content)
-----------------------------------------------
-Prompt strings in ``prompts.json`` may contain ``{{index_yaml_path}}``,
-``{{bundle_dir}}``, ``{{courses_dir}}``, ``{{lesson_yaml_paths}}``, ``{{narration_json_path}}``
-and ``{{build_script_path}}``. They are replaced with absolute paths so a
-local-file-reading AI can open them. YAML *content* is never embedded in a prompt.
-
 Example
 -------
     python3 scripts/build_lesson_html.py \
       --bundle ./lesson-bundle \
       --index /abs/path/index.yaml \
       --lesson /abs/path/lessons/spotlight \
-      --narration /abs/path/narration.json \
-      --prompts references/sample-prompts.json
+      --narration /abs/path/narration.json
 """
 
 from __future__ import annotations
@@ -182,12 +173,6 @@ def as_list(value: object) -> list:
 
 def as_dict(value: object) -> dict:
     return value if isinstance(value, dict) else {}
-
-
-def fill_placeholders(text: str, mapping: dict[str, str]) -> str:
-    for key, value in mapping.items():
-        text = text.replace("{{" + key + "}}", value)
-    return text
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:
@@ -574,39 +559,6 @@ def render_course_cards(courses: list[dict]) -> str:
     return "\n".join(cards)
 
 
-def render_prompt_cards(prompts: list, mapping: dict[str, str]) -> str:
-    if not prompts:
-        return '<p class="empty">プロンプトテンプレートがありません。</p>'
-    cards = []
-    for position, item in enumerate(prompts):
-        if not isinstance(item, dict):
-            raise SystemExit("build_lesson_html.py: each prompt entry must be a JSON object")
-        pid = str(item.get("id", f"prompt-{position}"))
-        dom_id = "prompt-" + "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in pid)
-        tags = item.get("tags") or []
-        tags_html = ""
-        if isinstance(tags, list) and tags:
-            chips = "".join(f'<span class="tag">{esc(t)}</span>' for t in tags)
-            tags_html = f'<div class="tags">{chips}</div>'
-        body = fill_placeholders(str(item.get("prompt", "")), mapping)
-        cards.append("\n".join([
-            '<article class="card">',
-            '  <div class="card-head">',
-            f'    <h3>{esc(item.get("title", pid))}</h3>',
-            f"    {tags_html}",
-            "  </div>",
-            f'  <p class="card-desc">{esc(item.get("description", ""))}</p>',
-            '  <details class="prompt-details">',
-            "    <summary>プロンプト本文を表示 / 折りたたみ</summary>",
-            f'    <pre class="prompt-body" id="{dom_id}">{esc(body)}</pre>',
-            "  </details>",
-            f'  <button class="copy-btn" type="button" data-target="{dom_id}">'
-            "プロンプトをコピー</button>",
-            "</article>",
-        ]))
-    return "\n".join(cards)
-
-
 # ---------------------------------------------------------------------------
 # author-facing checks (never shown in the UI)
 # ---------------------------------------------------------------------------
@@ -821,29 +773,6 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
     if index_dest.is_file():
         index_data = load_yaml(index_dest)
 
-    prompts_dest = bundle / "prompts.json"
-    if args.prompts:
-        prompts_dest.write_text(read_text(args.prompts), encoding="utf-8")
-    prompts: list = []
-    if prompts_dest.is_file():
-        data = load_json(prompts_dest, "prompts.json")
-        if not isinstance(data, list):
-            raise SystemExit("build_lesson_html.py: prompts file must contain a JSON array")
-        prompts = data
-
-    lesson_paths = "\n".join(
-        f"- {c['title']}: {(bundle / 'courses' / c['id'] / 'lesson.yaml').resolve()}"
-        for c in manifest
-    )
-    mapping = {
-        "index_yaml_path": str(index_dest.resolve()) if index_dest.is_file() else "(index.yaml は未指定)",
-        "bundle_dir": str(bundle.resolve()),
-        "courses_dir": str((bundle / "courses").resolve()),
-        "lesson_yaml_paths": lesson_paths or "(コースがありません)",
-        "narration_json_path": str((bundle / "narration.json").resolve()),
-        "build_script_path": str(Path(__file__).resolve()),
-    }
-
     title, overview_body, overview_meta, source_note = render_overview_section(
         index_data, as_dict(narration.get("overview")), warnings)
     if args.title:
@@ -855,7 +784,6 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
     document = document.replace("__OVERVIEW_META__", overview_meta)
     document = document.replace("__SOURCE_NOTE__", source_note)
     document = document.replace("__COURSE_CARDS__", render_course_cards(manifest))
-    document = document.replace("__PROMPT_CARDS__", render_prompt_cards(prompts, mapping))
     (bundle / "index.html").write_text(document, encoding="utf-8")
 
     write_manifest(bundle, manifest)
@@ -877,22 +805,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "    --bundle ./lesson-bundle \\\n"
             "    --index ../generate-doc-index/references/sample-index.yaml \\\n"
             "    --lesson ../generate-lesson-yaml/references/sample-lesson.yaml \\\n"
-            "    --narration references/sample-narration.json \\\n"
-            "    --prompts references/sample-prompts.json\n"
+            "    --narration references/sample-narration.json\n"
         ),
     )
     parser.add_argument("--bundle", required=True, help="output bundle directory (created if missing)")
     parser.add_argument("--lesson", action="append", default=[], metavar="[NAME=]PATH",
                         help="a course: a lesson directory (lesson.yaml + evidence.yaml) or a "
                              "lesson.yaml path; repeatable, appends/updates each run")
-    parser.add_argument("--narration", help="path to the narration JSON: every sentence the learner "
-                                       "reads (course/step lead-ins, cautions, checkpoint "
-                                       "wording, Japanese gist per source). Merged into the "
-                                       "bundle's narration.json and reused when omitted")
+    parser.add_argument("--narration", help="path to the narration JSON: every sentence the "
+                                            "learner reads (course/step lead-ins, cautions, "
+                                            "checkpoint wording, Japanese gist per source). "
+                                            "Merged into the bundle's narration.json and "
+                                            "reused when omitted")
     parser.add_argument("--index", help="path to index.yaml (doc-index/v1); supplies the "
-                                        "availability chips and is cited by the prompts")
-    parser.add_argument("--prompts", help="path to prompts.json (the 'add a course' templates); "
-                                          "reused from the bundle when omitted")
+                                        "availability chips")
     parser.add_argument("--title", help="optional override for the course-list title")
     return parser.parse_args(argv)
 

@@ -5,11 +5,10 @@
 
 ```
 <bundle>/
-  index.html                 コース一覧（概要 / コース / コース追加プロンプト）
+  index.html                 コース一覧（概要 / コース）
   courses.json               順序付きマニフェスト {"courses":[{id,title,file,steps,…}, …]}
-  narration.json                  受講者向けの文章（--narration をマージして保存。再ビルドで保持）
-  prompts.json               コース追加プロンプト（複製される）
-  index.yaml                 複製される。対応環境の取得元で、プロンプトが絶対パスで引用する
+  narration.json             受講者向けの文章（--narration をマージして保存。再ビルドで保持）
+  index.yaml                 複製される（対応環境チップの取得元）
   courses/
     <course>/lesson.yaml     複製される（コースの原本）
     <course>/evidence.yaml   複製される
@@ -41,7 +40,6 @@ header            タイトル + ライト/ダークトグル
 概要              narration.overview.lead（書き起こした文章）+ index.yaml の対応環境チップ
 コース            コースカードのグリッド。1 枚 = 1 コース
                     タイトル / narration の summary / 手順数 / stack
-コース追加プロンプト  コピーボタン付きのカード（教材を作る人向け。チャット UI ではない）
 inline <style> / <script>   外部 CSS・JS なし
 ```
 

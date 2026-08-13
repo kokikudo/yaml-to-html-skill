@@ -2,7 +2,7 @@
 
 このスキルの生成物は**オフラインで自己完結した安全なバンドル**。ここでの「生成」は
 テンプレートへの流し込みであって、AI が HTML を書き起こすことではない。AI が書くのは
-**narration JSON）**だけ。
+**解説文（narration JSON）**だけ。
 
 ## まず: AI は HTML を書かない
 
@@ -27,14 +27,15 @@
 
 最後の 1 つがよく引っかかる。`see_also[].path` や `source.path` は**ラベル**であって
 リンクではない。スキームを落として `developer.apple.com/documentation/...` の形で書く。
-narration JSON やプロンプト本文に禁止トークン（`fetch(` など）を書いてしまうのも同じく失敗するので、
+解説文（narration JSON）に禁止トークン（`fetch(` など）を書いてしまうのも同じく失敗するので、
 言い回しを変える。
 
 ## 許可
 
 - インライン `<style>` / `<script>`
-- ページ内で完結する操作（Step の切り替え、前へ / 次へ、出典へのジャンプ、コピーボタン）
-- クリップボードへのコピー（`navigator.clipboard` + `textarea` フォールバック）
+- ページ内で完結する操作（Step の切り替え、前へ / 次へ、出典へのジャンプ）
+- コースページのコードをクリップボードへ送るボタン（`navigator.clipboard` +
+  `textarea` フォールバック）。コース一覧側にこの種のボタンは無い。
 
 ## ページ遷移とテーマ
 
@@ -64,7 +65,7 @@ narration JSON やプロンプト本文に禁止トークン（`fetch(` など�
   ページ全体を横に流さない。
 - **`prefers-reduced-motion` を尊重する。**
 
-## narration JSON 側）
+## 文章のルール（narration JSON 側）
 
 詳細は `narration-contract.md`。要点だけ:
 
