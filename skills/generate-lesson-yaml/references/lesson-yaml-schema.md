@@ -113,9 +113,6 @@ steps:
       - symptom: string
         cause: string
         source_ref: fact_id    # 必須。これがあるので推測を書けない
-    see_also:                  # optional — 元ページに戻る導線
-      - title: string
-        path: string           # scheme を落とした実パス
 ```
 
 ## フィールド注記
@@ -142,13 +139,11 @@ steps:
   出ない」のような書き方。ここを省くと、学習者は途中の手順で動かないことを不具合と誤認する。
 
 - **`checkpoint.kind: observe` は人間にしか実行できない。** 「Spotlight の検索結果に出る」の
-  ような確認を機械検証できるふりをしない。`see_also` を添えて元ページに戻れるようにする。
+  ような確認を機械検証できるふりをしない。`source_refs` でその確認の根拠を示し、判断は学習者に
+  委ねる。元ページのパスは出典側のエントリに載る。
 
 - **`common_errors[].source_ref` が必須なのは意図的。** 教材は実行して確かめる手段を持たない
   ので、記載のない「よくある詰まり」は推測になる。スキーマがそれを書けなくしている。
-
-- **`see_also[].path` は索引か evidence から転記する。** タイトルから組み立てない。Apple は
-  「Spotlight integration」というタイトルのページを `…/appintents/spotlight` に置いている。
 
 ## URL について（オフライン安全性）
 
@@ -205,9 +200,6 @@ steps:
       expect: "型が定義できている。まだ検索には出ない"
       origin: authored
       origin_note: "この段階で何が確認できるかはドキュメントに記載がないため補った"
-    see_also:
-      - title: "App entities"
-        path: "developer.apple.com/documentation/appintents/app-entities"
 ```
 
 この例が参照している 2 つの fact（`f-appentity-conformance` / `f-availability`）は

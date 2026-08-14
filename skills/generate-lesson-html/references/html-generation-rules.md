@@ -25,8 +25,8 @@
 - API キー・秘密情報
 - `http://` / `https://` を含む文字列（オフライン自己完結には不要）
 
-最後の 1 つがよく引っかかる。`see_also[].path` や `source.path` は**ラベル**であって
-リンクではない。スキームを落として `developer.apple.com/documentation/...` の形で書く。
+最後の 1 つがよく引っかかる。出典の `source.path` は**ラベル**であってリンクではない。
+スキームを落として `developer.apple.com/documentation/...` の形で書く。
 解説文（narration JSON）に禁止トークン（`fetch(` など）を書いてしまうのも同じく失敗するので、
 言い回しを変える。
 

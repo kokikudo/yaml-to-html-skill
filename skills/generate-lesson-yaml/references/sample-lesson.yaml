@@ -108,9 +108,6 @@ steps:
       expect: "PhotoEntity が定義できている。defaultQuery がまだ無いのでこの時点ではビルドが通らない"
       origin: authored
       origin_note: "次の手順との依存関係は教材側の構成なので補った"
-    see_also:
-      - title: "App entities"
-        path: "developer.apple.com/documentation/appintents/app-entities"
 
   - id: st-query
     title: "PhotoEntityQuery で entity を引けるようにする"
@@ -142,9 +139,6 @@ steps:
       expect: "ビルドが通る。entity として成立したが、まだ検索には出ない"
       origin: authored
       origin_note: "到達点の言語化はドキュメントに記載がないため補った"
-    see_also:
-      - title: "EntityQuery"
-        path: "developer.apple.com/documentation/appintents/entityquery"
 
   - id: st-index
     title: "Spotlight のインデックスに登録する"
@@ -208,6 +202,3 @@ steps:
       expect: "アプリを一度起動してから Spotlight で写真のタイトルを検索すると結果に出る。反映まで数秒かかることがある"
       origin: authored
       origin_note: "検索結果に出るかどうかは学習者が目で確認するしかないため、機械検証の形にはしていない"
-    see_also:
-      - title: "Spotlight integration"
-        path: "developer.apple.com/documentation/appintents/spotlight"

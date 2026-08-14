@@ -148,16 +148,17 @@ pre.code{
 .errors .symptom{font-weight:600;margin:0}
 .errors .cause{color:var(--muted);font-size:14px;margin:2px 0 0}
 .ref-line{font-size:14px;margin:8px 0 0}
+.ref-line .ref-label{color:var(--muted);font-size:12.5px}
+/* 出典はそれが根拠になっている場所の直下に出す（コード / 確認 / つまずき / 前提） */
+.file .ref-line{
+  margin:0;padding:9px 14px;font-size:13px;
+  background:var(--panel-2);border-top:1px solid var(--border);
+}
+.checkpoint .ref-line,.errors .ref-line{margin:10px 0 0}
+.plain-list .ref-line{margin:4px 0 0}
 .fact-link{color:var(--accent);text-decoration:none;border-bottom:1px dotted currentColor}
 .fact-link:hover{border-bottom-style:solid}
 .fact-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.see-also{list-style:none;padding-left:0;font-size:14px}
-.see-also li{border-bottom:1px solid var(--border);padding:8px 0}
-.see-also li:last-child{border-bottom:0}
-.see-also .path{
-  color:var(--muted);font-size:12px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;
-}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
 .chip{
   background:var(--chip);color:var(--muted);border:1px solid var(--border);

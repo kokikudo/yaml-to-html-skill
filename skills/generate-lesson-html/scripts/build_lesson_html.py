@@ -237,7 +237,8 @@ def fact_links(refs: object, facts: dict[str, dict], missing: list[str],
                      f"{inline(title)}</a>")
     if not links:
         return ""
-    return f'<p class="ref-line">{esc(label)}: {"、".join(links)}</p>'
+    return (f'<p class="ref-line"><span class="ref-label">{esc(label)}:</span> '
+            f'{"、".join(links)}</p>')
 
 
 # ---------------------------------------------------------------------------
@@ -331,7 +332,6 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
 
     files = [f for f in as_list(step.get("files")) if isinstance(f, dict)]
     file_narration = as_dict(narration.get("files"))
-    all_refs: list[str] = []
     if files:
         parts.append("  <h3>書くコード</h3>")
     for position, file_item in enumerate(files, start=1):
@@ -339,7 +339,6 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         path = str(file_item.get("path", ""))
         action_label = ACTION_LABELS.get(str(file_item.get("action", "")), "")
         lang = file_item.get("lang")
-        all_refs.extend(str(r) for r in as_list(file_item.get("source_refs")) if r)
         explanation = file_narration.get(path) or file_narration.get(Path(path).name)
         parts.append('  <div class="file">')
         parts.append('    <div class="file-head">')
@@ -356,6 +355,8 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         if explanation:
             parts.append(f'    <div class="file-note">{prose(explanation)}</div>')
         parts.append(f'    <pre class="code" id="{code_id}">{esc(file_item.get("content", ""))}</pre>')
+        parts.append(fact_links(file_item.get("source_refs"), facts, missing,
+                                "このコードの出典"))
         parts.append("  </div>")
 
     for note in as_list(narration.get("notes")):
@@ -365,11 +366,12 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
     if checkpoint:
         kind = str(checkpoint.get("kind", ""))
         label, meaning = CHECKPOINT_LABELS.get(kind, ("確認", ""))
-        all_refs.extend(str(r) for r in as_list(checkpoint.get("source_refs")) if r)
         parts.append("  <h3>ここまでの確認</h3>")
         parts.append('  <div class="checkpoint">')
         parts.append(f'    <span class="badge check" title="{esc(meaning)}">{esc(label)}</span>')
         parts.append(prose(narration.get("checkpoint") or checkpoint.get("expect"), "expect"))
+        parts.append(fact_links(checkpoint.get("source_refs"), facts, missing,
+                                "この確認の出典"))
         parts.append("  </div>")
 
     errors = [e for e in as_list(step.get("common_errors")) if isinstance(e, dict)]
@@ -377,26 +379,11 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         parts.append("  <h3>つまずいたときは</h3>")
         for error in errors:
             ref = error.get("source_ref")
-            if ref:
-                all_refs.append(str(ref))
             parts.append('  <div class="errors">')
             parts.append(f'    <p class="symptom">{inline(error.get("symptom"))}</p>')
             parts.append(f'    <p class="cause">{inline(error.get("cause"))}</p>')
             parts.append(fact_links([ref] if ref else [], facts, missing, "出典"))
             parts.append("  </div>")
-
-    unique_refs = list(dict.fromkeys(all_refs))
-    see_also = [s for s in as_list(step.get("see_also")) if isinstance(s, dict)]
-    if unique_refs or see_also:
-        parts.append("  <h3>この手順のもとになった資料</h3>")
-    if unique_refs:
-        parts.append(fact_links(unique_refs, facts, missing, "出典"))
-    if see_also:
-        parts.append('  <ul class="see-also">')
-        for link in see_also:
-            parts.append(f'    <li>{inline(link.get("title"))}'
-                         f'<br><span class="path">{esc(link.get("path"))}</span></li>')
-        parts.append("  </ul>")
 
     parts.append("</article>")
     return "\n".join(p for p in parts if p)
@@ -434,7 +421,7 @@ def render_evidence_panel(lesson: dict, facts: dict[str, dict], narration: dict,
              "  <h2>出典一覧</h2>",
              prose(narration.get("lead") or
                    "このレッスンの説明とコードが、公式ドキュメントのどの記述に基づいているかの"
-                   "一覧です。各手順の「この手順のもとになった資料」から、ここへ飛べます。")]
+                   "一覧です。各手順のコードや確認の下にある「出典」から、ここへ飛べます。")]
     if not facts:
         parts.append('  <p class="muted">出典が登録されていません。</p>')
 
