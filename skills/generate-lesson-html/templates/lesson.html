@@ -16,26 +16,53 @@
 <title>__LESSON_TITLE__</title>
 <style>
 :root{
-  --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f1f3f7; --border:#e3e6ec;
+  --bg:#f6f7fa; --panel:#ffffff; --panel-2:#eef1f6; --border:#e0e4ec;
   --text:#1d2330; --muted:#5b6577; --accent:#2b6cff; --accent-2:#1a9e6b;
-  --chip:#eef1f6; --code-bg:#f4f6fa; --warn:#b8730a; --radius:12px;
+  --chip:#eef1f6; --warn:#b8730a; --radius:12px;
+  /* 文中のコード片と引用の面: 地色より一段沈め、枠で締める */
+  --code-bg:#e7ebf2; --code-border:#ced5e0; --code-text:#12182a;
+  /* コードブロックの面: 紺地に白抜き。地の文と最もはっきり分ける */
+  --block-bg:#111a2e; --block-text:#f2f5fc; --block-border:#22304d;
+  /* セクションの下地（枠線の色と対で使う） */
+  --accent-soft:#eef3ff; --accent-line:#c8d9ff; --accent-text:#1d54c4;
+  --ok-soft:#eaf7f1;     --ok-line:#bee4d3;    --ok-text:#157a55;
+  --warn-soft:#fdf5e6;   --warn-line:#f0dcb4;
+  --shadow:0 1px 2px rgba(17,24,39,.04), 0 10px 24px -18px rgba(17,24,39,.35);
+  /* 和文優先のフォント指定（欧文は各 OS の UI 書体、和文はその OS の標準ゴシック） */
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans",
+    "Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP",
+    Roboto,Meiryo,system-ui,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,
+    "Hiragino Sans","Yu Gothic","Noto Sans Mono CJK JP",monospace;
 }
 :root[data-theme="dark"]{
   --bg:#0f1115; --panel:#171a21; --panel-2:#1f232c; --border:#2c313c;
   --text:#e6e9ef; --muted:#9aa3b2; --accent:#5aa9ff; --accent-2:#36c08f;
-  --chip:#262b36; --code-bg:#0c0e13; --warn:#e0a33c;
+  --chip:#262b36; --warn:#e0a33c;
+  /* 暗いモードではパネルより一段沈め、枠は逆に明るく */
+  --code-bg:#090b10; --code-border:#39414f; --code-text:#eef2f9;
+  --block-bg:#080d18; --block-text:#e9eefb; --block-border:#2b3a55;
+  --accent-soft:#141d2e; --accent-line:#2c4166; --accent-text:#5aa9ff;
+  --ok-soft:#10231c;     --ok-line:#245040;    --ok-text:#36c08f;
+  --warn-soft:#251c0e;   --warn-line:#4d3a17;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 26px -18px rgba(0,0,0,.85);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--text);
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",
-    "Noto Sans JP",Meiryo,sans-serif;
-  line-height:1.9; -webkit-font-smoothing:antialiased;
+  font-family:var(--font-sans);
+  line-height:1.9; letter-spacing:.01em; line-break:strict;
+  -webkit-font-smoothing:antialiased;
 }
+/* 見出しと UI 部品だけ和文の約物を詰める（本文は素のままの方が読みやすい） */
+h1,h2,h3,.nav-btn,.chip,.badge,.eyebrow,.nav-title{font-feature-settings:"palt" 1}
+p,li{overflow-wrap:break-word}
+pre,code,.file-path{letter-spacing:0}
 code{
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;
-  background:var(--chip);border:1px solid var(--border);border-radius:5px;padding:1px 5px;
+  font-family:var(--font-mono);font-size:.92em;
+  background:var(--code-bg);color:var(--code-text);
+  border:1px solid var(--code-border);border-radius:5px;padding:1px 5px;
 }
 .app{display:flex;flex-direction:column;min-height:100vh}
 .app-header{
@@ -63,7 +90,7 @@ code{
   border-right:1px solid var(--border);background:var(--panel);
   padding:20px 16px;overflow-y:auto;max-height:calc(100vh - 62px);position:sticky;top:62px;
 }
-.nav-title{font-size:13px;color:var(--muted);margin:0 0 12px;letter-spacing:.4px}
+.nav-title{font-size:11.5px;font-weight:600;color:var(--muted);margin:0 0 14px;letter-spacing:.08em}
 .step-nav{list-style:none;margin:0;padding:0}
 .step-nav li{position:relative}
 .step-nav li + li::before{
@@ -82,79 +109,137 @@ code{
 .nav-btn code{background:none;border:0;padding:0;font-size:.95em}
 .nav-num{
   flex:none;width:22px;height:22px;border-radius:50%;background:var(--chip);
-  border:1px solid var(--border);color:var(--muted);
-  font-size:12px;line-height:20px;text-align:center;
+  border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);
+  font-size:11.5px;line-height:20px;text-align:center;
 }
 .nav-btn.active .nav-num{background:var(--accent);border-color:var(--accent);color:#fff}
 .pane-right{padding:28px 32px 56px;overflow-x:auto}
-.panel{max-width:800px;margin:0 auto}
+.panel{max-width:820px;margin:0 auto}
 .panel.hidden{display:none}
 .panel > h2{font-size:27px;margin:0 0 14px;letter-spacing:.2px;line-height:1.45}
-.panel .eyebrow{color:var(--muted);font-size:12px;margin:0 0 6px;letter-spacing:.4px}
+/* 小見出しラベル（Step 1 / 4 など）は本文と書体で切り分ける */
+.panel .eyebrow{
+  color:var(--muted);font-family:var(--font-mono);font-size:11px;
+  letter-spacing:.08em;margin:0 0 8px;
+}
 p{margin:0 0 12px}
 .lead{font-size:16px}
 ul,ol{margin:0 0 14px;padding-left:22px}
 li{margin:4px 0}
-ul.plain-list{list-style:none;padding-left:0}
-ul.plain-list li{
-  border-bottom:1px solid var(--border);padding:8px 0;margin:0;
+/* 既定の丸ポチより、四角のマーカーの方が字面と揃って見やすい。
+   「始める前に必要なもの」（.plain-list）も他のリストと同じ見た目にする */
+.panel ul{list-style:none;padding-left:0}
+.panel ul > li{position:relative;padding-left:18px}
+.panel ul > li::before{
+  content:"";position:absolute;left:2px;top:.72em;width:6px;height:6px;border-radius:2px;
+  background:var(--accent);opacity:.75;
 }
-ul.plain-list li:last-child{border-bottom:0}
-.lead-box{
-  background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);
-  border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 22px;
+.panel ol{list-style:none;padding-left:0;counter-reset:ol-step}
+.panel ol > li{counter-increment:ol-step;position:relative;padding-left:32px;margin:8px 0}
+.panel ol > li::before{
+  content:counter(ol-step);position:absolute;left:0;top:.28em;
+  width:22px;height:22px;border-radius:7px;background:var(--chip);
+  border:1px solid var(--border);color:var(--muted);
+  font-family:var(--font-mono);font-size:11.5px;line-height:20px;text-align:center;
 }
-.lead-box p:last-child{margin-bottom:0}
+ul.plain-list li{margin:8px 0}
+/* パネル直下の h3 は「セクションの頭」。上に罫、頭にアクセントの棒を置いて区切りを立てる */
+.panel > h3{
+  display:flex;align-items:center;gap:10px;
+  font-size:17px;margin:36px 0 14px;padding-top:22px;border-top:1px solid var(--border);
+}
+.panel > h3::before{
+  content:"";flex:none;width:4px;height:1.05em;border-radius:2px;background:var(--accent);
+}
 h3{font-size:17px;margin:28px 0 10px}
+/* 並び順は 説明（枠なし）→ ファイル名 → コード → 出典。
+   囲むのはファイル名とコードだけで、説明は地の文のまま置く。 */
+.file-note{margin:0 0 10px}
 .file{
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  margin:0 0 18px;overflow:hidden;
+  background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  margin:0 0 24px;overflow:hidden;box-shadow:var(--shadow);
 }
+/* 上（ファイル名）と下（出典）で同じ面色にして、コードを挟む帯として揃える */
 .file-head{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-  padding:10px 12px;background:var(--panel-2);border-bottom:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  padding:12px 14px;background:var(--panel-2);border-bottom:1px solid var(--border);
 }
 .file-path{
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;
-  word-break:break-all;background:none;border:0;padding:0;
+  font-family:var(--font-mono);font-size:13.5px;font-weight:600;
+  word-break:break-all;background:none;border:0;padding:0;color:var(--text);
 }
+/* 「新規作成 / 書き足す」はファイル名と同じ枠の左上に置く */
 .file-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.file-note{padding:12px 14px 0}
-.file-note p:last-child{margin-bottom:8px}
+/* コードとコピーボタン: ボタンはブロックの右上に重ねる */
+.code-wrap{position:relative}
 pre.code{
-  margin:0;padding:14px;background:var(--code-bg);overflow-x:auto;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
-  line-height:1.65;
+  margin:0;padding:15px 16px;background:var(--block-bg);color:var(--block-text);
+  overflow-x:auto;border-bottom:1px solid var(--block-border);
+  font-family:var(--font-mono);font-size:12.5px;line-height:1.7;
 }
+.file .code-wrap:last-child pre.code{border-bottom:0}
+/* コード面は明暗どちらでも濃色なので、ボタンの見え方も明暗で変えない */
+.code-wrap .copy-btn{
+  position:absolute;top:8px;right:10px;z-index:2;
+  background:rgba(255,255,255,.10);color:#d7deee;border:1px solid rgba(255,255,255,.24);
+  padding:3px 10px;font-size:11.5px;box-shadow:none;
+}
+.code-wrap .copy-btn:hover{background:rgba(255,255,255,.18);color:#fff;filter:none}
+.code-wrap .copy-btn.copied{background:var(--accent-2);color:#fff;border-color:transparent}
 .badge{
   display:inline-block;border-radius:6px;padding:1px 8px;font-size:11px;
   border:1px solid currentColor;white-space:nowrap;
 }
 .badge.neutral{color:var(--muted)}
-.badge.check{color:var(--accent-2)}
+.badge.check{color:var(--ok-text);background:var(--ok-soft);border-color:var(--ok-line)}
+/* 何をするファイルなのかを色で分ける */
+.badge.create{color:var(--ok-text);background:var(--ok-soft);border-color:var(--ok-line)}
+.badge.update{color:var(--accent-text);background:var(--accent-soft);border-color:var(--accent-line)}
+.badge.lang{color:var(--muted);background:var(--panel);border-color:var(--border)}
 .note{
-  border-left:3px solid var(--warn);background:var(--panel);border-radius:0 8px 8px 0;
-  padding:12px 16px;margin:0 0 18px;
+  position:relative;background:var(--warn-soft);border:1.5px solid var(--warn-line);
+  border-left:4px solid var(--warn);border-radius:4px 10px 10px 4px;
+  padding:14px 16px 14px 46px;margin:0 0 18px;
 }
+.note::before{
+  content:"!";position:absolute;left:15px;top:16px;width:20px;height:20px;border-radius:50%;
+  background:var(--warn);color:#fff;font-size:13px;font-weight:700;line-height:20px;
+  text-align:center;
+}
+/* ダークではアクセントが明るいので、丸の中の文字は暗くする */
+:root[data-theme="dark"] .note::before{color:#1c1405}
+.note p:last-child{margin-bottom:0}
 .checkpoint{
-  background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent-2);
-  border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 18px;
+  background:var(--ok-soft);border:1.5px solid var(--ok-line);
+  border-left:4px solid var(--accent-2);border-radius:4px 10px 10px 4px;
+  padding:14px 16px;margin:0 0 18px;
 }
 .checkpoint .expect{margin:8px 0 0}
+.checkpoint .expect:last-child{margin-bottom:0}
 .errors{
-  border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:0 0 14px;
-  background:var(--panel);
+  border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin:0 0 12px;
+  background:var(--panel);box-shadow:var(--shadow);
 }
-.errors .symptom{font-weight:600;margin:0}
-.errors .cause{color:var(--muted);font-size:14px;margin:2px 0 0}
+.errors .symptom{display:flex;align-items:flex-start;gap:9px;font-weight:600;margin:0}
+.errors .symptom::before{
+  content:"?";flex:none;width:20px;height:20px;border-radius:50%;
+  background:var(--chip);border:1px solid var(--border);color:var(--muted);
+  font-size:12px;font-weight:700;line-height:19px;text-align:center;
+}
+.errors .cause{color:var(--muted);font-size:14px;margin:2px 0 0;padding-left:29px}
 .ref-line{font-size:14px;margin:8px 0 0}
-.ref-line .ref-label{color:var(--muted);font-size:12.5px}
+.ref-line .ref-label{
+  color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.06em;margin-right:2px;
+}
 /* 出典はそれが根拠になっている場所の直下に出す（コード / 確認 / つまずき / 前提） */
 .file .ref-line{
   margin:0;padding:9px 14px;font-size:13px;
   background:var(--panel-2);border-top:1px solid var(--border);
 }
-.checkpoint .ref-line,.errors .ref-line{margin:10px 0 0}
+/* コード面の下枠と二重線にしない */
+.file .code-wrap + .ref-line{border-top:0}
+.checkpoint .ref-line{margin:10px 0 0}
+.errors .ref-line{margin:8px 0 0;padding-left:29px}
 .plain-list .ref-line{margin:4px 0 0}
 .fact-link{color:var(--accent);text-decoration:none;border-bottom:1px dotted currentColor}
 .fact-link:hover{border-bottom-style:solid}
@@ -170,25 +255,30 @@ pre.code{
 }
 /* --- 出典一覧 --- */
 .fact-entry{
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  padding:18px 20px;margin:0 0 18px;scroll-margin-top:80px;
+  background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;margin:0 0 18px;scroll-margin-top:80px;box-shadow:var(--shadow);
   transition:border-color .25s ease, box-shadow .25s ease;
 }
 .fact-entry h3{margin:0 0 6px;font-size:19px;line-height:1.5}
 .fact-entry.flash{border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,108,255,.18)}
 .fact-path{
   margin:0 0 12px;color:var(--accent);font-size:13.5px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;
+  font-family:var(--font-mono);word-break:break-all;
 }
 .fact-gist{margin:0 0 12px}
-.fact-original{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
-.fact-original-label{margin:0 0 6px;color:var(--muted);font-size:11.5px;letter-spacing:.4px}
+.fact-original{
+  background:var(--code-bg);color:var(--code-text);border:1px solid var(--code-border);
+  border-radius:8px;padding:10px 12px;
+}
+.fact-original-label{
+  margin:0 0 6px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.08em;
+}
 .fact-original pre{
-  margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+  margin:0;font-family:var(--font-mono);font-size:12.5px;
   white-space:pre-wrap;word-break:break-word;line-height:1.6;
 }
 .fact-meta{margin:10px 0 0;color:var(--muted);font-size:12px}
-.fact-id{margin-left:8px;opacity:.45;font-size:11px;font-family:ui-monospace,Menlo,monospace}
+.fact-id{margin-left:8px;opacity:.45;font-size:11px;font-family:var(--font-mono)}
 .copy-btn{
   background:var(--accent);color:#fff;border:0;border-radius:8px;
   padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;

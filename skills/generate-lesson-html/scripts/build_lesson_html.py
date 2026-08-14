@@ -79,6 +79,8 @@ ORIGIN_RULES = {"verbatim_from_doc", "adapted", "synthesized", "authored"}
 ORIGIN_ORDER = ["verbatim_from_doc", "adapted", "synthesized", "authored"]
 
 ACTION_LABELS = {"create": "新規作成", "update": "書き足す"}
+# 作る / 足す を色で見分けられるようにする（テンプレート側の .badge.create / .badge.update）
+ACTION_BADGE_CLASSES = {"create": "create", "update": "update"}
 CHECKPOINT_LABELS = {
     "build": ("ビルドして確認", "ビルドが通ることを確かめる"),
     "run": ("動かして確認", "実際に実行して確かめる"),
@@ -310,7 +312,7 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
             parts.append("  <ul>" + "".join(f"<li>{inline(x)}</li>" for x in excludes) + "</ul>")
 
     for note in as_list(narration.get("notes")):
-        parts.append(f'  <div class="note">{inline(note)}</div>')
+        parts.append(f'  <div class="note">{prose(note)}</div>')
 
     parts.append("</article>")
     return "\n".join(p for p in parts if p)
@@ -328,7 +330,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
     if not lead:
         warnings.append(f"{lesson_id}/{step_id}: 解説文に lead がありません"
                         "（導入文が YAML の転記になります）")
-    parts.append(f'  <div class="lead-box">{prose(lead or step.get("why"))}</div>')
+    parts.append(prose(lead or step.get("why"), "lead"))
 
     files = [f for f in as_list(step.get("files")) if isinstance(f, dict)]
     file_narration = as_dict(narration.get("files"))
@@ -340,27 +342,34 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
         action_label = ACTION_LABELS.get(str(file_item.get("action", "")), "")
         lang = file_item.get("lang")
         explanation = file_narration.get(path) or file_narration.get(Path(path).name)
+        # 並び順は 説明 → ファイル名 → コード。説明は枠の外に置き、枠で囲むのは
+        # ファイル名（左上に「新規作成 / 書き足す」）とコードだけ。
+        if explanation:
+            parts.append(prose(explanation, "file-note"))
         parts.append('  <div class="file">')
         parts.append('    <div class="file-head">')
-        parts.append(f'      <code class="file-path">{esc(path)}</code>')
-        parts.append('      <span class="file-meta">')
+        badges = []
         if action_label:
-            parts.append(f'        <span class="badge neutral">{esc(action_label)}</span>')
+            action_class = ACTION_BADGE_CLASSES.get(str(file_item.get("action", "")), "neutral")
+            badges.append(f'<span class="badge {action_class}">{esc(action_label)}</span>')
         if lang:
-            parts.append(f'        <span class="badge neutral">{esc(lang)}</span>')
-        parts.append(f'        <button class="copy-btn" type="button" data-target="{code_id}">'
-                     "コードをコピー</button>")
-        parts.append("      </span>")
+            badges.append(f'<span class="badge lang">{esc(lang)}</span>')
+        if badges:
+            parts.append(f'      <span class="file-meta">{"".join(badges)}</span>')
+        parts.append(f'      <code class="file-path">{esc(path)}</code>')
         parts.append("    </div>")
-        if explanation:
-            parts.append(f'    <div class="file-note">{prose(explanation)}</div>')
-        parts.append(f'    <pre class="code" id="{code_id}">{esc(file_item.get("content", ""))}</pre>')
+        parts.append('    <div class="code-wrap">')
+        parts.append(f'      <button class="copy-btn" type="button" data-target="{code_id}"'
+                     f' aria-label="{esc(path)} のコードをコピー">コピー</button>')
+        parts.append(f'      <pre class="code" id="{code_id}">'
+                     f'{esc(file_item.get("content", ""))}</pre>')
+        parts.append("    </div>")
         parts.append(fact_links(file_item.get("source_refs"), facts, missing,
                                 "このコードの出典"))
         parts.append("  </div>")
 
     for note in as_list(narration.get("notes")):
-        parts.append(f'  <div class="note">{inline(note)}</div>')
+        parts.append(f'  <div class="note">{prose(note)}</div>')
 
     checkpoint = as_dict(step.get("checkpoint"))
     if checkpoint:
@@ -546,7 +555,7 @@ def render_overview_section(narration: dict, warnings: list[str]) -> tuple[str, 
                 'バンドル直下の narration.json に、索引が指すドキュメントが何であるかを'
                 '日本語で書いた lead を入れてください。</p>')
     for note in as_list(narration.get("notes")):
-        body += f'\n<div class="note">{inline(note)}</div>'
+        body += f'\n<div class="note">{prose(note)}</div>'
 
     chips = [f'<span class="chip">{esc(a)}</span>'
              for a in as_list(narration.get("availability"))]

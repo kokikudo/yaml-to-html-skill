@@ -16,26 +16,48 @@
 <title>__TITLE__</title>
 <style>
 :root{
-  --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f1f3f7; --border:#e3e6ec;
+  --bg:#f6f7fa; --panel:#ffffff; --panel-2:#eef1f6; --border:#e0e4ec;
   --text:#1d2330; --muted:#5b6577; --accent:#2b6cff; --accent-2:#1a9e6b;
-  --chip:#eef1f6; --code-bg:#f4f6fa; --warn:#b8730a; --radius:12px;
+  --chip:#eef1f6; --warn:#b8730a; --radius:12px;
+  /* コード面: 明るいモードでは地色より一段沈め、枠で締める */
+  --code-bg:#e7ebf2; --code-border:#ced5e0; --code-text:#12182a;
+  /* セクションの下地（枠線の色と対で使う） */
+  --accent-soft:#eef3ff; --accent-line:#c8d9ff;
+  --warn-soft:#fdf5e6;   --warn-line:#f0dcb4;
+  --shadow:0 1px 2px rgba(17,24,39,.04), 0 10px 24px -18px rgba(17,24,39,.35);
+  /* 和文優先のフォント指定（欧文は各 OS の UI 書体、和文はその OS の標準ゴシック） */
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans",
+    "Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP",
+    Roboto,Meiryo,system-ui,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,
+    "Hiragino Sans","Yu Gothic","Noto Sans Mono CJK JP",monospace;
 }
 :root[data-theme="dark"]{
   --bg:#0f1115; --panel:#171a21; --panel-2:#1f232c; --border:#2c313c;
   --text:#e6e9ef; --muted:#9aa3b2; --accent:#5aa9ff; --accent-2:#36c08f;
-  --chip:#262b36; --code-bg:#0c0e13; --warn:#e0a33c;
+  --chip:#262b36; --warn:#e0a33c;
+  /* コード面: 暗いモードではパネルより一段沈め、枠は逆に明るく */
+  --code-bg:#090b10; --code-border:#39414f; --code-text:#eef2f9;
+  --accent-soft:#141d2e; --accent-line:#2c4166;
+  --warn-soft:#251c0e;   --warn-line:#4d3a17;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 26px -18px rgba(0,0,0,.85);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--text);
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN",
-    "Noto Sans JP",Meiryo,sans-serif;
-  line-height:1.85; -webkit-font-smoothing:antialiased;
+  font-family:var(--font-sans);
+  line-height:1.85; letter-spacing:.01em; line-break:strict;
+  -webkit-font-smoothing:antialiased;
 }
+/* 見出しと UI 部品だけ和文の約物を詰める（本文は素のままの方が読みやすい） */
+h1,h2,h3,.chip,.lesson-cta{font-feature-settings:"palt" 1}
+p,li{overflow-wrap:break-word}
+pre,code{letter-spacing:0}
 code{
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;
-  background:var(--chip);border:1px solid var(--border);border-radius:5px;padding:1px 5px;
+  font-family:var(--font-mono);font-size:.92em;
+  background:var(--code-bg);color:var(--code-text);
+  border:1px solid var(--code-border);border-radius:5px;padding:1px 5px;
 }
 .app-header{
   padding:14px 20px;border-bottom:1px solid var(--border);
@@ -53,11 +75,26 @@ code{
 }
 .theme-toggle:hover{border-color:var(--accent)}
 .theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-main{max-width:960px;margin:0 auto;padding:28px 20px 64px}
-section{margin:0 0 44px}
-h2{font-size:28px;margin:0 0 14px;letter-spacing:.2px}
-h3{font-size:16px;margin:0}
+main{max-width:960px;margin:0 auto;padding:32px 20px 64px}
+/* セクションの切れ目をはっきりさせる: 罫 + 余白 + 見出し頭のアクセント */
+main > section + section{margin:38px 0 0;padding-top:32px;border-top:1px solid var(--border)}
+section{margin:0}
+h2{
+  display:flex;align-items:center;gap:11px;
+  font-size:24px;margin:0 0 18px;letter-spacing:.2px;
+}
+h2::before{content:"";flex:none;width:5px;height:1.05em;border-radius:3px;background:var(--accent)}
+h3{font-size:17px;margin:0}
+/* 概要はカードとして囲み、下のレッスン一覧と地の色で分ける */
+.overview{
+  background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;box-shadow:var(--shadow);
+}
+.overview h2{margin:0 0 14px}
 .overview p{margin:0 0 12px;font-size:15.5px}
+.overview p:last-of-type{margin-bottom:0}
+/* 対応環境のような版数の並びは等幅にすると拾いやすい */
+.overview > .chips .chip{font-family:var(--font-mono);font-size:11.5px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
 .chip{
   background:var(--chip);color:var(--muted);border:1px solid var(--border);
@@ -65,21 +102,41 @@ h3{font-size:16px;margin:0}
 }
 .chip.warn{color:var(--warn)}
 .note{
-  border-left:3px solid var(--warn);background:var(--panel);border-radius:0 8px 8px 0;
-  padding:10px 14px;margin:14px 0 0;font-size:14px;
+  position:relative;background:var(--warn-soft);border:1.5px solid var(--warn-line);
+  border-left:4px solid var(--warn);border-radius:4px 10px 10px 4px;
+  padding:11px 14px 11px 44px;margin:14px 0 0;font-size:14px;
 }
-.lesson-list{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.note::before{
+  content:"!";position:absolute;left:14px;top:13px;width:20px;height:20px;border-radius:50%;
+  background:var(--warn);color:#fff;font-size:13px;font-weight:700;line-height:20px;
+  text-align:center;
+}
+/* ダークではアクセントが明るいので、丸の中の文字は暗くする */
+:root[data-theme="dark"] .note::before{color:#1c1405}
+.note p:last-child{margin-bottom:0}
+.lesson-list{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
 .lesson-card{
-  display:flex;flex-direction:column;text-decoration:none;color:inherit;
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  padding:18px;transition:border-color .12s ease, transform .12s ease;
+  position:relative;display:flex;flex-direction:column;text-decoration:none;color:inherit;
+  background:var(--panel);border:1.5px solid var(--border);border-radius:var(--radius);
+  padding:20px;overflow:hidden;box-shadow:var(--shadow);
+  transition:border-color .12s ease, transform .12s ease, box-shadow .12s ease;
 }
-.lesson-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.lesson-card::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:var(--accent);opacity:0;transition:opacity .12s ease;
+}
+.lesson-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.lesson-card:hover::before{opacity:1}
 .lesson-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .lesson-card .outcome{margin:10px 0 0;color:var(--muted);font-size:14px}
-.lesson-cta{margin:14px 0 0;color:var(--accent);font-size:13px;font-weight:600}
+.lesson-cta{margin:16px 0 0;color:var(--accent);font-size:13px;font-weight:600}
 .empty{color:var(--muted);font-size:13px}
 .source-note{color:var(--muted);font-size:12px;margin:16px 0 0}
+@media (max-width:640px){
+  main{padding:22px 16px 48px}
+  .overview{padding:18px 16px}
+  h2{font-size:21px}
+}
 @media (prefers-reduced-motion:reduce){
   *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
 }
