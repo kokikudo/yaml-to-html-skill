@@ -54,7 +54,8 @@ skill to refresh it.
 
 ## Output bundle structure
 
-Create a directory with the correct name based on the source content, and place the generated `index.html` inside it.
+Create a directory with the correct name based on the source content, and place the generated
+`index.yaml` inside it.
 
 ```
 <bundle>/

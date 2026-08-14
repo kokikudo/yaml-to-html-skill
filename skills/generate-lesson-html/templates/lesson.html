@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  テンプレート: コース本体（views/<course_name>.html）
+  テンプレート: レッスン本体（lessons/<lesson_id>/<lesson_id>.html）
   build_lesson_html.py が __TOKEN__ を置換して出力する。手で書き換えるのはこのテンプレート側。
   差し込み口:
-    __COURSE_TITLE__     コース名
-    __BACK_HREF__        コース一覧への相対パス（既定 ../index.html）
+    __LESSON_TITLE__     レッスン名
+    __BACK_HREF__        レッスン一覧への相対パス（既定 ../../main.html）
     __STEP_COUNT__       Step 数（左ペインの見出し用）
     __NAV_ITEMS__        左ペインのナビ（概要 / 各 Step / 出典一覧）
     __PANELS__           右ペインの各パネル（ナビ 1 項目につき 1 パネル・同じ順序）
@@ -13,7 +13,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>__COURSE_TITLE__</title>
+<title>__LESSON_TITLE__</title>
 <style>
 :root{
   --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f1f3f7; --border:#e3e6ec;
@@ -50,7 +50,7 @@ code{
 }
 .back-link:hover{background:var(--chip)}
 .back-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.course-name{margin:4px 0 0;font-size:16px;font-weight:600}
+.lesson-name{margin:4px 0 0;font-size:16px;font-weight:600}
 .theme-toggle{
   flex:none;background:var(--chip);color:var(--text);border:1px solid var(--border);
   border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;white-space:nowrap;
@@ -224,15 +224,15 @@ pre.code{
   <header class="app-header">
     <div class="header-row">
       <div>
-        <a class="back-link" id="back-link" href="__BACK_HREF__">&lt; コース一覧</a>
-        <p class="course-name">__COURSE_TITLE__</p>
+        <a class="back-link" id="back-link" href="__BACK_HREF__">&lt; レッスン一覧</a>
+        <p class="lesson-name">__LESSON_TITLE__</p>
       </div>
       <button class="theme-toggle" type="button" id="theme-toggle" aria-label="テーマ切り替え">🌙 ダーク</button>
     </div>
   </header>
   <main class="layout">
-    <nav class="pane pane-left" aria-label="コースの Step">
-      <p class="nav-title">コースの Step（全 __STEP_COUNT__ 手順）</p>
+    <nav class="pane pane-left" aria-label="レッスンの Step">
+      <p class="nav-title">レッスンの Step（全 __STEP_COUNT__ 手順）</p>
       <ul class="step-nav">
         __NAV_ITEMS__
       </ul>

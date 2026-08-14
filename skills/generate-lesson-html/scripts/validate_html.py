@@ -3,18 +3,18 @@
 
 Scan the generated lesson bundle for unsafe / non-self-contained patterns.
 
-This skill promises an **offline, self-contained** bundle: a course list plus one page per
-course, opened straight from disk with no network access. This linter enforces that promise.
+This skill promises an **offline, self-contained** bundle: a lesson list plus one page per
+lesson, opened straight from disk with no network access. This linter enforces that promise.
 It is intentionally conservative — it flags string patterns, so a finding may occasionally be
 a false positive (e.g. the word ``fetch`` in prose). Fix the wording or the markup so the
 output stays unambiguously safe.
 
 Difference from the sibling explainer skill
 -------------------------------------------
-The lesson bundle uses **no iframe** — a course is reached by a plain relative link
-(``views/<course>.html``) and the back link returns to ``index.html``. So an ``<iframe>`` of
-any kind is unexpected here: a *remote* one is an error, and a bare one is a warning telling
-you it should carry ``sandbox``.
+The lesson bundle uses **no iframe** — a lesson is reached by a plain relative link
+(``lessons/<id>/<id>.html``) and the back link returns to ``main.html``. So an ``<iframe>``
+of any kind is unexpected here: a *remote* one is an error, and a bare one is a warning
+telling you it should carry ``sandbox``.
 
 Exit code
 ---------
@@ -124,8 +124,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "(external scripts/CSS/iframes, network APIs, storage, frame escape, URLs)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="example:\n  python3 scripts/validate_html.py ./lesson-bundle/index.html "
-               "./lesson-bundle/views/*.html --strict\n",
+        epilog="example:\n  python3 scripts/validate_html.py ./lesson-bundle/main.html "
+               "./lesson-bundle/lessons/*/*.html --strict\n",
     )
     parser.add_argument("files", nargs="+", help="HTML file(s) to validate")
     parser.add_argument("--strict", action="store_true",

@@ -6,9 +6,9 @@
 
 ## まず: AI は HTML を書かない
 
-- マークアップの出所は `templates/index.html` と `templates/course.html` だけ。
+- マークアップの出所は `templates/main.html` と `templates/lesson.html` だけ。
 - 見た目を変えたいときはテンプレートを直して再ビルドする。生成物を手で直さない。
-- 「このコースだけ特別なレイアウトにする」はしない。教材が増えるほど差が保守不能になる。
+- 「このレッスンだけ特別なレイアウトにする」はしない。教材が増えるほど差が保守不能になる。
 
 ## 禁止（生成物のどこにも入れない）
 
@@ -34,18 +34,19 @@
 
 - インライン `<style>` / `<script>`
 - ページ内で完結する操作（Step の切り替え、前へ / 次へ、出典へのジャンプ）
-- コースページのコードをクリップボードへ送るボタン（`navigator.clipboard` +
-  `textarea` フォールバック）。コース一覧側にこの種のボタンは無い。
+- レッスンページのコードをクリップボードへ送るボタン（`navigator.clipboard` +
+  `textarea` フォールバック）。レッスン一覧側にこの種のボタンは無い。
 
 ## ページ遷移とテーマ
 
-- コースは**リンクで開く別ページ**。iframe を使わないので、Chrome / Edge / Firefox の
+- レッスンは**リンクで開く別ページ**。iframe を使わないので、Chrome / Edge / Firefox の
   どれでも `file://` のまま動く。
 - 既定はライトテーマ。トグルは `document.documentElement` の `data-theme="dark"` を切り替える。
 - **ストレージが使えない**ので、テーマはページをまたぐときに**リンクのハッシュ**で運ぶ:
-  一覧 → コースは `views/<course>.html#theme=dark`、コース → 一覧は `../index.html#theme=dark`。
+  一覧 → レッスンは `lessons/<lesson_id>/<lesson_id>.html#theme=dark`、レッスン → 一覧は
+  `../../main.html#theme=dark`。
   リロードするとライトに戻る（仕様）。
-- コースページのハッシュは `#step=<step id>`、出典を開いているときは `#fact=<fact id>`
+- レッスンページのハッシュは `#step=<step id>`、出典を開いているときは `#fact=<fact id>`
   （ダーク時は `&theme=dark` が付く）。読み込み時にハッシュを見て、その位置から開く。
 
 ## UI の原則

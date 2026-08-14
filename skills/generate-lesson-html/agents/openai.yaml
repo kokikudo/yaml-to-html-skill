@@ -9,20 +9,20 @@ version: 1
 description: >
   Turn lesson.yaml + evidence.yaml (from generate-lesson-yaml), optionally with the
   index.yaml they came from, into a self-contained hands-on lesson bundle. The bundle is a
-  directory: a course list (overview + course cards) and one page per course (left: step
+  directory: a lesson list (overview + lesson cards) and one page per lesson (left: step
   nav, right: the current step, top-left: back to the list).
   lesson.yaml is a RECORD, not the lesson text: everything the learner reads except titles
-  and source code is newly written by this skill into a narration JSON (course/step
+  and source code is newly written by this skill into narration JSON files (lesson/step
   lead-ins, per-file explanations, cautions, checkpoint wording, and a Japanese gist for
   every quoted source). Author metadata (origin, fact ids, YAML file names) never reaches
   the UI; the origin rules are still checked and reported as build warnings. Sources are
   one tap away: each step links into the sources page, where the Japanese gist sits next to
   the official original text. The markup lives in templates/ — this skill renders, it never
-  authors HTML. Courses are additive.
+  authors HTML. Lessons are additive.
 
 use_when:
-  - user has (or wants) a lesson.yaml/evidence.yaml pair and wants a hands-on HTML course
-  - user wants to add another course to an existing lesson bundle
+  - user has (or wants) a lesson.yaml/evidence.yaml pair and wants a hands-on HTML lesson
+  - user wants to add another lesson to an existing lesson bundle
 do_not_use_when:
   - lesson.yaml / evidence.yaml do not exist yet (use generate-lesson-yaml first)
   - there is no index.yaml to work from (use generate-doc-index first)
@@ -42,72 +42,81 @@ workflow:
     goal: read lesson.yaml, its sibling evidence.yaml, and (when available) index.yaml by
       absolute path; if the lesson YAML is missing, defer to generate-lesson-yaml
   - id: write_narration
-    goal: write the learner-facing Japanese prose as a narration JSON — course-list
-      overview, course lead-in, per-step lead-in ("why now", linking back to the previous
-      step), per-file explanation, cautions, checkpoint wording, and a gist per quoted
-      source. Spoken-style です・ます; proper nouns in backticks; never transcribe
-      lesson.yaml's why/outcome/expect; never add facts the YAML does not carry; never
-      mention origin, fact ids or YAML file names
+    goal: write the learner-facing Japanese prose as narration JSON — the lesson-list
+      overview (a Japanese rewrite of index.yaml's source.root_abstract: what the indexed
+      DOCUMENTATION is, not a pitch for the lessons), lesson lead-in, per-step lead-in
+      ("why now", linking back to the previous step), per-file explanation, cautions,
+      checkpoint wording, and a gist per quoted source. Spoken-style です・ます; proper
+      nouns in backticks; never transcribe the English abstract or lesson.yaml's
+      why/outcome/expect; never add facts the YAML does not carry; never mention origin,
+      fact ids or YAML file names
     rules: references/narration-contract.md
     example: references/sample-narration.json
   - id: build
-    goal: render the bundle from the templates (course list + one page per course)
+    goal: render the bundle from the templates (lesson list + one page per lesson)
     tool: build_lesson_html
   - id: read_warnings
     goal: read the build warnings (missing narration, origin rules, dangling source_refs,
       unreferenced facts, duplicate step ids) and fix them in the narration or the YAML —
       never paper over them in the HTML
   - id: validate
-    goal: enforce the offline / self-containment contract over index.html and every course page
+    goal: enforce the offline / self-containment contract over main.html and every lesson page
     tool: validate_html
   - id: report
-    goal: hand over the bundle folder plus course count and step count; also report the
+    goal: hand over the bundle folder plus lesson count and step count; also report the
       origin breakdown to the AUTHOR (the authored ratio characterises the material) even
       though it never appears in the UI
-  - id: add_course_later
-    goal: to add a course, produce one more lesson.yaml/evidence.yaml pair plus its
-      narration, and re-run build_lesson_html with only the new --lesson and --narration;
-      it appends a course and preserves the rest
+  - id: add_lesson_later
+    goal: to add a lesson, produce one more lessons/<id>/ directory (lesson.yaml +
+      evidence.yaml + narration.json) inside the bundle and re-run build_lesson_html with
+      just --bundle; every lesson in the bundle is re-rendered and the new one is appended
 
 tools:
   - name: build_lesson_html
     type: shell
     command: python3 scripts/build_lesson_html.py
     description: >
-      Render the bundle: fill templates/index.html and templates/course.html, duplicate
-      index.yaml / lesson.yaml / evidence.yaml into the bundle, merge the narration JSON
-      into narration.json, merge courses into courses.json. Renderer, not an author —
-      nothing appears on screen that is not in the YAML or the narration. Warns on missing
-      narration, origin-rule violations and broken source_refs.
+      Render the bundle: fill templates/main.html and templates/lesson.html, import any
+      outside material into lessons/<id>/, and rewrite main.html, every lesson page and
+      lessons.json. Renderer, not an author — nothing appears on screen that is not in the
+      YAML or the narration. Warns on missing narration, origin-rule violations and broken
+      source_refs.
     args:
       - name: --bundle
         required: true
-        description: output bundle directory (created if missing)
+        description: the bundle directory (the one holding index.yaml; created if missing).
+          Every lessons/<id>/ inside it is rendered on each build
       - name: --lesson
         required: false
         repeatable: true
-        description: 'a course: a lesson directory or a lesson.yaml path; "ID=PATH" forces the id'
+        description: 'import a lesson from outside the bundle: a lesson directory or a
+          lesson.yaml path, copied into lessons/<id>/; "ID=PATH" forces the id'
       - name: --narration
         required: false
-        description: path to the narration JSON (the learner-facing prose); merged into the
-          bundle's narration.json and reused when omitted
+        repeatable: true
+        description: 'ID=PATH; merged into lessons/<ID>/narration.json (the learner-facing
+          prose for that lesson)'
+      - name: --overview
+        required: false
+        description: path to the narration JSON for main.html; merged into the bundle's
+          narration.json
       - name: --index
         required: false
-        description: path to index.yaml (doc-index/v1); supplies the availability chips
-          (its English abstract is never transcribed into the page)
+        description: path to index.yaml (doc-index/v1); copied into the bundle and used for
+          the availability chips (its English abstract is never transcribed into the page)
       - name: --title
         required: false
-        description: override the course-list title
+        description: override the lesson-list title
   - name: validate_html
     type: shell
     command: python3 scripts/validate_html.py
     description: >
-      Scan index.html and every views/*.html for unsafe / non-self-contained patterns.
+      Scan main.html and every lessons/*/*.html for unsafe / non-self-contained patterns.
       Exits non-zero on any error (use --strict to fail on warnings too).
     args:
       - name: files
         required: true
-        description: index.html and every views/*.html to validate
+        description: main.html and every lessons/*/*.html to validate
       - name: --strict
         required: false
         description: also fail on warnings
@@ -115,11 +124,12 @@ tools:
 constraints:
   output: a self-contained bundle directory; opens offline in any browser over file://
   markup: written ONLY by the templates + build_lesson_html.py — never hand-edit the output
-  iframe: not used at all (a course is a plain linked page; that is why file:// works in Chrome)
+  iframe: not used at all (a lesson is a plain linked page; that is why file:// works in Chrome)
   theme: light by default; carried across pages via the link hash (#theme=dark); no storage
-  courses: additive — a new --lesson appends a course; same id updates that course in place
+  lessons: additive — every build re-renders every lessons/<id>/ in the bundle; a new
+    directory (or --lesson) appends a lesson, an existing id is updated in place
   content: titles and source code come from the YAML; every other sentence comes from the
-    narration JSON; the renderer never fills gaps and never invents facts
+    narration JSON files; the renderer never fills gaps and never invents facts
   origin: author metadata — checked at build time and reported as warnings, never rendered
   yaml_loader: scripts/mini_yaml.py (stdlib only) — no anchors, aliases, tags or multi-doc
   forbidden:
@@ -133,24 +143,27 @@ constraints:
     - any http:// or https:// string (paths are labels, with the scheme dropped)
 
 inputs:
-  - absolute path to lesson.yaml (its evidence.yaml is found next to it)
-  - absolute path to the narration JSON (written by this skill; merged into the bundle)
-  - absolute path to index.yaml (optional; supplies the availability chips)
+  - the bundle directory (index.yaml + lessons/<id>/lesson.yaml + evidence.yaml)
+  - the narration JSON files written by this skill: <bundle>/narration.json for the lesson
+    list and <bundle>/lessons/<id>/narration.json for each lesson
+  - absolute paths to outside material to import (optional: --lesson / --narration /
+    --overview / --index)
 
 outputs:
-  - a bundle directory (index.html + courses.json + narration.json + index.yaml +
-    courses/<course>/*.yaml + views/<course>.html)
+  - a bundle directory (index.yaml + narration.json + lessons.json + main.html +
+    lessons/<id>/{lesson.yaml,evidence.yaml,narration.json,<id>.html})
 
 open_note: >
-  No iframe is involved, so index.html opens directly over file:// in Chrome, Edge or
+  No iframe is involved, so main.html opens directly over file:// in Chrome, Edge or
   Firefox. Theme rides on the link hash; reloading resets it to light.
 
 references:
   - SKILL.md
   - references/narration-contract.md
   - references/sample-narration.json
+  - references/sample-overview.json
   - references/bundle-structure.md
   - references/template-contract.md
   - references/html-generation-rules.md
-  - templates/index.html
-  - templates/course.html
+  - templates/main.html
+  - templates/lesson.html

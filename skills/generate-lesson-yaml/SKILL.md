@@ -38,10 +38,31 @@ index.yaml（doc-index/v1・既存・読むだけ）
 
 ## 書き出し先
 
-**一時ディレクトリではない安定した場所**に、1 リクエスト 1 ディレクトリで書く。
-既定は `<workspace>/lessons/<topic>/` 配下の `lesson.yaml` と `evidence.yaml`。
+**`index.yaml` の隣の `lessons/` に書く。** その中に教材の内容が分かる名称でディレクトリを
+1 つ作り（1 リクエスト 1 ディレクトリ）、その配下に `lesson.yaml` と `evidence.yaml` を置く。
+
+> `lessons/` がない場合は作成する。ディレクトリ名はそのまま次段で URL とファイル名になるので、
+> 英小文字・数字・ハイフンで付ける。
+
+**足すのは自分のディレクトリだけ。** `index.yaml` も、`lessons/` にある他のレッスンも
+書き換えない。同じバンドルに何本もレッスンが並ぶので、1 回の実行が触ってよい範囲は
+`lessons/<今回のレッスン>/` に限られる。
 
 最後に**絶対パス**を報告する。
+
+## 出力時のファイル構造
+
+```
+<bundle>/
+  index.yaml          # generate-doc-index が置いた索引。読むだけで書き換えない
+  lessons/            # レッスンをまとめたディレクトリ、なかったら作成する
+    <lesson_name>/    # <new> 各レッスンのディレクトリ
+      lesson.yaml     # <new> レッスン内容を構成するYAMLファイル
+      evidence.yaml   # <new> レッスン内容とソースを紐づけるYAMLファイル
+```
+
+このあと `generate-lesson-html` が同じディレクトリに `narration.json` と HTML を足す。
+このスキルはそこには手を出さない。
 
 ## 手順
 

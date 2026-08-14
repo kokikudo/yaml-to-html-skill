@@ -2,8 +2,8 @@
 """build_lesson_html.py
 
 Render a hands-on **lesson bundle** from ``index.yaml`` (doc-index/v1), one or more
-``lesson.yaml`` / ``evidence.yaml`` pairs (lesson/v1 + evidence/v1), and a **narration file**
-(``--narration``) holding the reader-facing Japanese prose.
+``lesson.yaml`` / ``evidence.yaml`` pairs (lesson/v1 + evidence/v1), and the **narration
+files** holding the reader-facing Japanese prose.
 
 Two kinds of input, on purpose
 ------------------------------
@@ -11,9 +11,9 @@ Two kinds of input, on purpose
 verbatim it reads like a spec, not like teaching material. So the page takes:
 
 - **from the YAML** — titles, file paths, source code, requirements, checkpoints, sources;
-- **from the narration file** — every explanatory sentence the learner reads (course lead-in,
-  per-step lead-in, per-file explanation, cautions, checkpoint wording, and the Japanese
-  gist of each quoted source).
+- **from the narration files** — every explanatory sentence the learner reads (lesson
+  lead-in, per-step lead-in, per-file explanation, cautions, checkpoint wording, and the
+  Japanese gist of each quoted source).
 
 Author metadata (``origin``, ``origin_note``, ``needs_facts``, fact ids, YAML file names)
 stays out of the learner-facing UI. The origin rules are still *checked* — violations are
@@ -21,34 +21,40 @@ reported as build warnings for the author.
 
 The markup itself lives in ``templates/`` and is the single source of truth for layout:
 
-    templates/index.html    the course list  (概要 + コース)
-    templates/course.html   one course       (left: Step nav / right: the current Step)
+    templates/main.html     the lesson list  (概要 + レッスン)
+    templates/lesson.html   one lesson       (left: Step nav / right: the current Step)
 
 What it produces
 ----------------
 
     <bundle>/
-      index.html               course list; links to views/<course>.html
-      courses.json             ordered manifest: {"courses":[{id,title,file,...}, ...]}
-      narration.json           the merged reader-facing prose (reused on later builds)
-      index.yaml               duplicated into the bundle (source of the availability chips)
-      courses/<course>/lesson.yaml
-      courses/<course>/evidence.yaml
-      views/<course>.html      one full page per course
+      index.yaml                 the doc index (availability chips); copied in by --index
+      narration.json             prose for main.html (title / lead / notes / source_note)
+      lessons.json               ordered manifest: {"lessons":[{id,file,title,...}, ...]}
+      main.html                  lesson list; links to lessons/<id>/<id>.html
+      lessons/<id>/lesson.yaml
+      lessons/<id>/evidence.yaml
+      lessons/<id>/narration.json    prose for this lesson
+      lessons/<id>/<id>.html        the lesson page
 
-There is **no iframe**: a course is a normal page reached by a link, and the back link
+Everything a lesson needs lives in its own directory, so a lesson is self-contained on
+disk and the bundle is what the two upstream skills write into directly.
+
+There is **no iframe**: a lesson is a normal page reached by a link, and the back link
 returns to the list. That keeps the bundle openable in any browser over ``file://``.
 
-Courses are **additive**. Re-running with one new ``--lesson`` appends a course and leaves
-the existing ones untouched; re-running with an existing course id updates that course.
+Lessons are **additive**. Every build renders every lesson directory found under
+``lessons/``; ``--lesson`` imports one more from outside the bundle.
 
 Example
 -------
+    python3 scripts/build_lesson_html.py --bundle ./lesson-bundle
+
     python3 scripts/build_lesson_html.py \
       --bundle ./lesson-bundle \
       --index /abs/path/index.yaml \
-      --lesson /abs/path/lessons/spotlight \
-      --narration /abs/path/narration.json
+      --lesson spotlight=/abs/path/elsewhere/spotlight \
+      --narration spotlight=/abs/path/narration.json
 """
 
 from __future__ import annotations
@@ -162,7 +168,7 @@ def slugify(label: str) -> str:
     s = "".join(out)
     while "--" in s:
         s = s.replace("--", "-")
-    return s.strip("-_") or "course"
+    return s.strip("-_") or "lesson"
 
 
 def as_list(value: object) -> list:
@@ -184,6 +190,20 @@ def deep_merge(base: dict, overlay: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+def same_file(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return False
+
+
+def copy_file(src: Path, dest: Path) -> None:
+    """Copy text content, unless src and dest are the same file already."""
+    if same_file(src, dest):
+        return
+    dest.write_text(read_text(src), encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -219,11 +239,11 @@ def fact_links(refs: object, facts: dict[str, dict], missing: list[str],
 
 
 # ---------------------------------------------------------------------------
-# course page rendering
+# lesson page rendering
 # ---------------------------------------------------------------------------
 
 def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
-                          missing: list[str], warnings: list[str], course_id: str) -> str:
+                          missing: list[str], warnings: list[str], lesson_id: str) -> str:
     goal = as_dict(lesson.get("goal"))
     project = as_dict(lesson.get("project"))
     scope = as_dict(lesson.get("scope"))
@@ -233,18 +253,18 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
     if scope.get("truncated"):
         reason = narration.get("truncated_note") or scope.get("truncated_reason")
         parts.append(
-            '  <div class="banner"><strong>このコースは途中までです。</strong> '
+            '  <div class="banner"><strong>このレッスンは途中までです。</strong> '
             f'{inline(reason)}</div>'
         )
 
     lead = narration.get("lead")
     if not lead:
-        warnings.append(f"{course_id}: 解説文に lead がありません（概要が YAML の転記になります）")
+        warnings.append(f"{lesson_id}: 解説文に lead がありません（概要が YAML の転記になります）")
     parts.append(prose(lead or goal.get("outcome"), "lead"))
 
     goal_text = narration.get("goal") or goal.get("outcome")
     if goal_text:
-        parts.append('  <h3>このコースを終えたときの状態</h3>')
+        parts.append('  <h3>このレッスンを終えたときの状態</h3>')
         parts.append(prose(goal_text))
 
     chips = []
@@ -279,7 +299,7 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
     covers = as_list(narration.get("covers")) or as_list(scope.get("covers"))
     excludes = as_list(narration.get("excludes")) or as_list(scope.get("excludes"))
     if covers or excludes:
-        parts.append("  <h3>このコースで扱うこと</h3>")
+        parts.append("  <h3>このレッスンで扱うこと</h3>")
         if covers:
             parts.append("  <ul>" + "".join(f"<li>{inline(c)}</li>" for c in covers) + "</ul>")
         if excludes:
@@ -295,7 +315,7 @@ def render_overview_panel(lesson: dict, facts: dict[str, dict], narration: dict,
 
 def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict],
                       narration: dict, missing: list[str], warnings: list[str],
-                      course_id: str) -> str:
+                      lesson_id: str) -> str:
     step_id = str(step.get("id") or f"step-{number}")
     parts: list[str] = [f'<article class="panel hidden" id="panel-{esc(step_id)}">',
                         f'  <p class="eyebrow">Step {number} / {total}</p>',
@@ -303,7 +323,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
 
     lead = narration.get("lead")
     if not lead:
-        warnings.append(f"{course_id}/{step_id}: 解説文に lead がありません"
+        warnings.append(f"{lesson_id}/{step_id}: 解説文に lead がありません"
                         "（導入文が YAML の転記になります）")
     parts.append(f'  <div class="lead-box">{prose(lead or step.get("why"))}</div>')
 
@@ -381,7 +401,7 @@ def render_step_panel(step: dict, number: int, total: int, facts: dict[str, dict
 
 
 def render_evidence_panel(lesson: dict, facts: dict[str, dict], narration: dict,
-                          warnings: list[str], course_id: str) -> str:
+                          warnings: list[str], lesson_id: str) -> str:
     """The last nav entry: every quoted source, gist first, original text alongside."""
     used_by: dict[str, list[str]] = {}
 
@@ -411,7 +431,7 @@ def render_evidence_panel(lesson: dict, facts: dict[str, dict], narration: dict,
     parts = ['<article class="panel hidden" id="panel-evidence">',
              "  <h2>出典一覧</h2>",
              prose(narration.get("lead") or
-                   "このコースの説明とコードが、公式ドキュメントのどの記述に基づいているかの"
+                   "このレッスンの説明とコードが、公式ドキュメントのどの記述に基づいているかの"
                    "一覧です。各手順の「この手順のもとになった資料」から、ここへ飛べます。")]
     if not facts:
         parts.append('  <p class="muted">出典が登録されていません。</p>')
@@ -420,7 +440,7 @@ def render_evidence_panel(lesson: dict, facts: dict[str, dict], narration: dict,
         source = as_dict(fact.get("source"))
         gist = gists.get(fact_id)
         if not gist:
-            warnings.append(f"{course_id}: 解説文の evidence.facts に '{fact_id}' の日本語要旨がありません")
+            warnings.append(f"{lesson_id}: 解説文の evidence.facts に '{fact_id}' の日本語要旨がありません")
         kind = FACT_KIND_LABELS.get(str(fact.get("kind", "")), str(fact.get("kind", "")))
         meta = ["ページ: " + str(source.get("page_title", "")) if source.get("page_title") else ""]
         if source.get("fetched_at"):
@@ -461,10 +481,10 @@ def render_nav(items: list[tuple[str, str, str]]) -> str:
     return "\n        ".join(lis)
 
 
-def render_course_page(lesson: dict, evidence: dict, narration: dict, back_href: str,
-                       warnings: list[str], course_id: str) -> tuple[str, dict]:
-    """Render one views/<course>.html; return (html, summary)."""
-    template = load_template("course.html")
+def render_lesson_page(lesson: dict, evidence: dict, narration: dict, back_href: str,
+                       warnings: list[str], lesson_id: str) -> tuple[str, dict]:
+    """Render one lessons/<id>/<id>.html; return (html, summary)."""
+    template = load_template("lesson.html")
     facts = index_facts(evidence)
     missing: list[str] = []
 
@@ -472,30 +492,30 @@ def render_course_page(lesson: dict, evidence: dict, narration: dict, back_href:
     steps = [s for s in as_list(lesson.get("steps")) if isinstance(s, dict)]
     step_narration = as_dict(narration.get("steps"))
 
-    nav_items: list[tuple[str, str, str]] = [("overview", "概", "コースの概要")]
-    panels = [render_overview_panel(lesson, facts, narration, missing, warnings, course_id)]
+    nav_items: list[tuple[str, str, str]] = [("overview", "概", "レッスンの概要")]
+    panels = [render_overview_panel(lesson, facts, narration, missing, warnings, lesson_id)]
     for number, step in enumerate(steps, start=1):
         step_id = str(step.get("id") or f"step-{number}")
         nav_items.append((step_id, str(number), str(step.get("title") or step_id)))
         panels.append(render_step_panel(step, number, len(steps), facts,
                                         as_dict(step_narration.get(step_id)), missing,
-                                        warnings, course_id))
+                                        warnings, lesson_id))
     nav_items.append(("evidence", "典", "出典一覧"))
     panels.append(render_evidence_panel(lesson, facts, as_dict(narration.get("evidence")),
-                                        warnings, course_id))
+                                        warnings, lesson_id))
 
     for ref in dict.fromkeys(missing):
-        warnings.append(f"{course_id}: source_ref '{ref}' が evidence.yaml に見つかりません")
+        warnings.append(f"{lesson_id}: source_ref '{ref}' が evidence.yaml に見つかりません")
 
     document = template
-    document = document.replace("__COURSE_TITLE__", inline(goal.get("title") or course_id))
+    document = document.replace("__LESSON_TITLE__", inline(goal.get("title") or lesson_id))
     document = document.replace("__BACK_HREF__", esc(back_href))
     document = document.replace("__STEP_COUNT__", str(len(steps)))
     document = document.replace("__NAV_ITEMS__", render_nav(nav_items))
     document = document.replace("__PANELS__", "\n".join(panels))
 
     summary = {
-        "title": str(goal.get("title") or course_id),
+        "title": str(goal.get("title") or lesson_id),
         "summary": str(narration.get("summary") or goal.get("outcome") or ""),
         "stack": str(as_dict(lesson.get("project")).get("stack") or ""),
         "steps": len(steps),
@@ -507,12 +527,18 @@ def render_course_page(lesson: dict, evidence: dict, narration: dict, back_href:
 
 
 # ---------------------------------------------------------------------------
-# index page rendering
+# main page rendering
 # ---------------------------------------------------------------------------
 
 def render_overview_section(index_data: dict | None, narration: dict,
                             warnings: list[str]) -> tuple[str, str, str, str]:
-    """Return (page title, overview body, meta chips, closing note)."""
+    """Return (page title, overview body, meta chips, closing note).
+
+    The overview describes **the documentation the index points at** (its root title,
+    abstract and availability), not the lessons — the lessons have their own cards below it.
+    The English ``root_abstract`` is never transcribed: the narration author rewrites it in
+    Japanese, so the page stays readable and the source stays one link away.
+    """
     source = as_dict((index_data or {}).get("source"))
     title = str(narration.get("title") or source.get("root_title") or "ハンズオン教材")
 
@@ -520,9 +546,12 @@ def render_overview_section(index_data: dict | None, narration: dict,
     if lead:
         body = prose(lead)
     else:
-        warnings.append("解説文の overview.lead がありません（コース一覧の概要が空になります）")
-        body = ('<p class="empty">このコース一覧の概要はまだ書かれていません。'
-                '--narration に overview.lead を渡してください。</p>')
+        warnings.append("narration.json に lead がありません"
+                        "（レッスン一覧の概要が空になります。index.yaml の source.root_abstract を"
+                        "日本語に書き起こしてください）")
+        body = ('<p class="empty">このレッスン一覧の概要はまだ書かれていません。'
+                'バンドル直下の narration.json に、索引が指すドキュメントが何であるかを'
+                '日本語で書いた lead を入れてください。</p>')
     for note in as_list(narration.get("notes")):
         body += f'\n<div class="note">{inline(note)}</div>'
 
@@ -538,22 +567,22 @@ def render_overview_section(index_data: dict | None, narration: dict,
     return (title, body, meta, note)
 
 
-def render_course_cards(courses: list[dict]) -> str:
-    if not courses:
-        return '<p class="empty">コースがまだありません。</p>'
+def render_lesson_cards(lessons: list[dict]) -> str:
+    if not lessons:
+        return '<p class="empty">レッスンがまだありません。</p>'
     cards = []
-    for course in courses:
-        chips = [f'<span class="chip">全 {course.get("steps", 0)} 手順</span>']
-        if course.get("stack"):
-            chips.append(f'<span class="chip">{esc(course["stack"])}</span>')
-        if course.get("truncated"):
+    for lesson in lessons:
+        chips = [f'<span class="chip">全 {lesson.get("steps", 0)} 手順</span>']
+        if lesson.get("stack"):
+            chips.append(f'<span class="chip">{esc(lesson["stack"])}</span>')
+        if lesson.get("truncated"):
             chips.append('<span class="chip warn">途中まで</span>')
         cards.append("\n".join([
-            f'<a class="course-card" href="views/{esc(course["file"])}">',
-            f'  <h3>{inline(course["title"])}</h3>',
-            f'  <p class="outcome">{inline(course.get("summary", ""))}</p>',
+            f'<a class="lesson-card" href="{esc(lesson["file"])}">',
+            f'  <h3>{inline(lesson["title"])}</h3>',
+            f'  <p class="outcome">{inline(lesson.get("summary", ""))}</p>',
             f'  <div class="chips">{"".join(chips)}</div>',
-            '  <span class="course-cta">はじめる →</span>',
+            '  <span class="lesson-cta">はじめる →</span>',
             "</a>",
         ]))
     return "\n".join(cards)
@@ -583,7 +612,7 @@ def count_origins(lesson: dict) -> dict[str, int]:
     return counts
 
 
-def check_lesson(lesson: dict, facts: dict[str, dict], course_id: str,
+def check_lesson(lesson: dict, facts: dict[str, dict], lesson_id: str,
                  warnings: list[str]) -> None:
     """Report the origin / source_refs rules the lesson skill checks (never fatal)."""
     used: set[str] = set()
@@ -596,16 +625,16 @@ def check_lesson(lesson: dict, facts: dict[str, dict], course_id: str,
         used.update(refs)
         note = item.get("origin_note")
         if origin not in ORIGIN_RULES:
-            warnings.append(f"{course_id}/{where}: 未知の origin '{origin}'")
+            warnings.append(f"{lesson_id}/{where}: 未知の origin '{origin}'")
             return
         if origin == "verbatim_from_doc" and not refs:
-            warnings.append(f"{course_id}/{where}: verbatim_from_doc に source_refs がありません")
+            warnings.append(f"{lesson_id}/{where}: verbatim_from_doc に source_refs がありません")
         if origin == "adapted" and (not refs or not note):
-            warnings.append(f"{course_id}/{where}: adapted は source_refs 1 件以上と origin_note が必要です")
+            warnings.append(f"{lesson_id}/{where}: adapted は source_refs 1 件以上と origin_note が必要です")
         if origin == "synthesized" and (len(refs) < 2 or not note):
-            warnings.append(f"{course_id}/{where}: synthesized は source_refs 2 件以上と origin_note が必要です")
+            warnings.append(f"{lesson_id}/{where}: synthesized は source_refs 2 件以上と origin_note が必要です")
         if origin == "authored" and (refs or not note):
-            warnings.append(f"{course_id}/{where}: authored は source_refs 空 + origin_note 必須です")
+            warnings.append(f"{lesson_id}/{where}: authored は source_refs 空 + origin_note 必須です")
 
     project = as_dict(lesson.get("project"))
     audit(project.get("scaffold"), "project.scaffold")
@@ -617,7 +646,7 @@ def check_lesson(lesson: dict, facts: dict[str, dict], course_id: str,
             continue
         step_id = str(step.get("id") or f"step-{number}")
         if step_id in seen_ids:
-            warnings.append(f"{course_id}: step id '{step_id}' が重複しています")
+            warnings.append(f"{lesson_id}: step id '{step_id}' が重複しています")
         seen_ids.add(step_id)
         for position, file_item in enumerate(as_list(step.get("files")), start=1):
             audit(file_item, f"{step_id}.files[{position}]")
@@ -625,13 +654,13 @@ def check_lesson(lesson: dict, facts: dict[str, dict], course_id: str,
         for error in as_list(step.get("common_errors")):
             if isinstance(error, dict):
                 if not error.get("source_ref"):
-                    warnings.append(f"{course_id}/{step_id}: common_errors に source_ref がありません")
+                    warnings.append(f"{lesson_id}/{step_id}: common_errors に source_ref がありません")
                 else:
                     used.add(str(error["source_ref"]))
 
     for fact_id in facts:
         if fact_id not in used:
-            warnings.append(f"{course_id}: fact '{fact_id}' がどこからも参照されていません")
+            warnings.append(f"{lesson_id}: fact '{fact_id}' がどこからも参照されていません")
 
 
 # ---------------------------------------------------------------------------
@@ -639,50 +668,49 @@ def check_lesson(lesson: dict, facts: dict[str, dict], course_id: str,
 # ---------------------------------------------------------------------------
 
 def load_manifest(bundle: Path) -> list[dict]:
-    path = bundle / "courses.json"
+    path = bundle / "lessons.json"
     if not path.is_file():
         return []
-    data = load_json(path, "courses.json")
-    courses = data.get("courses") if isinstance(data, dict) else None
-    if not isinstance(courses, list):
+    data = load_json(path, "lessons.json")
+    lessons = data.get("lessons") if isinstance(data, dict) else None
+    if not isinstance(lessons, list):
         return []
-    return [c for c in courses if isinstance(c, dict) and c.get("id")]
+    return [entry for entry in lessons if isinstance(entry, dict) and entry.get("id")]
 
 
-def write_manifest(bundle: Path, courses: list[dict]) -> None:
-    (bundle / "courses.json").write_text(
-        json.dumps({"courses": courses}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def write_manifest(bundle: Path, lessons: list[dict]) -> None:
+    (bundle / "lessons.json").write_text(
+        json.dumps({"lessons": lessons}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def load_narration(bundle: Path, narration_arg: str | None) -> dict:
-    """Merge the passed narration file into whatever the bundle already holds, and store it."""
-    stored: dict = {}
-    dest = bundle / "narration.json"
-    if dest.is_file():
-        data = load_json(dest, "narration.json")
-        stored = data if isinstance(data, dict) else {}
-    if narration_arg:
-        data = load_json(narration_arg, "narration file")
-        if not isinstance(data, dict):
-            raise SystemExit("build_lesson_html.py: the narration file must contain a JSON object")
-        stored = deep_merge(stored, data)
-        dest.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n",
-                        encoding="utf-8")
-    return stored
+def read_narration(path: Path, what: str) -> dict:
+    """Read a narration file; an absent file is simply empty prose."""
+    if not path.is_file():
+        return {}
+    data = load_json(path, what)
+    if not isinstance(data, dict):
+        raise SystemExit(f"build_lesson_html.py: {what} ({path}) must contain a JSON object")
+    return data
 
 
-def parse_lesson_specs(specs: list[str]) -> list[tuple[str | None, Path]]:
-    """Parse ``--lesson PATH`` or ``--lesson NAME=PATH`` into (forced id, path) pairs."""
-    pairs: list[tuple[str | None, Path]] = []
-    for spec in specs:
-        name: str | None = None
-        raw = spec
-        if "=" in spec:
-            head, tail = spec.split("=", 1)
-            if head.strip() and tail.strip() and not Path(spec).exists():
-                name, raw = head.strip(), tail.strip()
-        pairs.append((name, Path(raw).expanduser()))
-    return pairs
+def merge_narration(dest: Path, source: Path, what: str) -> None:
+    """Merge ``source`` into the narration file at ``dest`` and store the result."""
+    if not source.is_file():
+        raise SystemExit(f"build_lesson_html.py: narration file not found: {source}")
+    if same_file(source, dest):
+        return
+    merged = deep_merge(read_narration(dest, what), read_narration(source, what))
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(merged, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def parse_id_spec(spec: str) -> tuple[str | None, Path]:
+    """Parse ``PATH`` or ``ID=PATH`` into (forced id, path)."""
+    if "=" in spec:
+        head, tail = spec.split("=", 1)
+        if head.strip() and tail.strip() and not Path(spec).exists():
+            return head.strip(), Path(tail.strip()).expanduser()
+    return None, Path(spec).expanduser()
 
 
 def resolve_lesson_paths(path: Path) -> tuple[Path, Path | None]:
@@ -711,80 +739,111 @@ def resolve_lesson_paths(path: Path) -> tuple[Path, Path | None]:
     return lesson, None
 
 
-def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
-    bundle = Path(args.bundle).expanduser()
-    (bundle / "views").mkdir(parents=True, exist_ok=True)
-    (bundle / "courses").mkdir(parents=True, exist_ok=True)
-
-    warnings: list[str] = []
-    manifest = load_manifest(bundle)
-    narration = load_narration(bundle, args.narration)
-    course_narration = as_dict(narration.get("courses"))
-
-    # --- courses (additive: append new, update existing in place) ---
-    for forced_name, spec_path in parse_lesson_specs(args.lesson or []):
+def import_lessons(lessons_dir: Path, specs: list[str], warnings: list[str]) -> list[str]:
+    """Copy each ``--lesson`` into ``lessons/<id>/``. Return the ids, in the order given."""
+    imported: list[str] = []
+    for spec in specs:
+        forced_id, spec_path = parse_id_spec(spec)
         lesson_path, evidence_path = resolve_lesson_paths(spec_path)
         lesson = load_yaml(lesson_path)
-        evidence = load_yaml(evidence_path) if evidence_path else {}
-        if evidence_path is None:
-            warnings.append(f"{lesson_path}: evidence.yaml が隣にありません（出典が空になります）")
-
         project_name = as_dict(lesson.get("project")).get("name")
         goal_title = as_dict(lesson.get("goal")).get("title")
-        course_id = slugify(forced_name or project_name or goal_title or lesson_path.parent.name)
-        this_narration = as_dict(course_narration.get(course_id))
-        if not this_narration:
-            warnings.append(f"{course_id}: 解説文に courses['{course_id}'] がありません"
+        lesson_id = slugify(forced_id or project_name or goal_title or lesson_path.parent.name)
+
+        dest = lessons_dir / lesson_id
+        dest.mkdir(parents=True, exist_ok=True)
+        copy_file(lesson_path, dest / "lesson.yaml")
+        if evidence_path:
+            copy_file(evidence_path, dest / "evidence.yaml")
+        else:
+            warnings.append(f"{lesson_path}: evidence.yaml が隣にありません（出典が空になります）")
+        source_narration = lesson_path.parent / "narration.json"
+        if source_narration.is_file():
+            merge_narration(dest / "narration.json", source_narration, "narration file")
+        imported.append(lesson_id)
+    return imported
+
+
+def lesson_order(bundle: Path, imported: list[str], warnings: list[str]) -> list[str]:
+    """Every lesson directory in the bundle: manifest order first, then anything new."""
+    lessons_dir = bundle / "lessons"
+    on_disk = sorted(d.name for d in lessons_dir.iterdir()
+                     if d.is_dir() and (d / "lesson.yaml").is_file())
+    for directory in sorted(d.name for d in lessons_dir.iterdir() if d.is_dir()):
+        if directory not in on_disk:
+            warnings.append(f"lessons/{directory} に lesson.yaml がないので飛ばしました")
+
+    order: list[str] = []
+    for lesson_id in [entry["id"] for entry in load_manifest(bundle)] + imported + on_disk:
+        if lesson_id in on_disk and lesson_id not in order:
+            order.append(lesson_id)
+    return order
+
+
+def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
+    bundle = Path(args.bundle).expanduser()
+    lessons_dir = bundle / "lessons"
+    lessons_dir.mkdir(parents=True, exist_ok=True)
+    warnings: list[str] = []
+
+    # --- bring outside material in, then take the narration overrides ---
+    imported = import_lessons(lessons_dir, args.lesson or [], warnings)
+    for spec in args.narration or []:
+        forced_id, path = parse_id_spec(spec)
+        if not forced_id:
+            raise SystemExit("build_lesson_html.py: --narration needs the lesson id: "
+                             "--narration ID=PATH (the main page uses --overview)")
+        merge_narration(lessons_dir / forced_id / "narration.json", path, "narration file")
+    if args.overview:
+        merge_narration(bundle / "narration.json", Path(args.overview).expanduser(),
+                        "overview narration file")
+    if args.index:
+        copy_file(Path(args.index).expanduser(), bundle / "index.yaml")
+
+    # --- render every lesson the bundle holds (additive by construction) ---
+    manifest: list[dict] = []
+    for lesson_id in lesson_order(bundle, imported, warnings):
+        directory = lessons_dir / lesson_id
+        lesson = load_yaml(directory / "lesson.yaml")
+        evidence_path = directory / "evidence.yaml"
+        evidence = load_yaml(evidence_path) if evidence_path.is_file() else {}
+        if not evidence_path.is_file():
+            warnings.append(f"{lesson_id}: evidence.yaml がありません（出典が空になります）")
+        narration = read_narration(directory / "narration.json", "narration file")
+        if not narration:
+            warnings.append(f"{lesson_id}: lessons/{lesson_id}/narration.json がありません"
                             "（受講者向けの文章が YAML の転記になります）")
 
         facts = index_facts(evidence)
-        check_lesson(lesson, facts, course_id, warnings)
-        page, summary = render_course_page(lesson, evidence, this_narration, "../index.html",
-                                           warnings, course_id)
-
-        (bundle / "views" / f"{course_id}.html").write_text(page, encoding="utf-8")
-        course_dir = bundle / "courses" / course_id
-        course_dir.mkdir(parents=True, exist_ok=True)
-        (course_dir / "lesson.yaml").write_text(read_text(lesson_path), encoding="utf-8")
-        if evidence_path:
-            (course_dir / "evidence.yaml").write_text(read_text(evidence_path), encoding="utf-8")
-
-        entry = {"id": course_id, "file": f"{course_id}.html", **summary}
-        existing = next((c for c in manifest if c["id"] == course_id), None)
-        if existing is None:
-            manifest.append(entry)
-        else:
-            existing.update(entry)
+        check_lesson(lesson, facts, lesson_id, warnings)
+        page, summary = render_lesson_page(lesson, evidence, narration, "../../main.html",
+                                           warnings, lesson_id)
+        (directory / f"{lesson_id}.html").write_text(page, encoding="utf-8")
+        manifest.append({"id": lesson_id,
+                         "file": f"lessons/{lesson_id}/{lesson_id}.html", **summary})
 
     if not manifest:
         raise SystemExit(
-            "build_lesson_html.py: no courses to build. Pass at least one --lesson PATH "
-            "(or build into a bundle that already has courses.json)."
+            "build_lesson_html.py: no lessons to build. Put a lesson under "
+            f"{lessons_dir}/<id>/lesson.yaml, or pass --lesson [ID=]PATH to import one."
         )
-    for course in manifest:
-        if not (bundle / "views" / course["file"]).is_file():
-            warnings.append(f"courses.json が参照する views/{course['file']} がありません")
 
-    # --- the index page ---
-    index_data = None
+    # --- the main page ---
     index_dest = bundle / "index.yaml"
-    if args.index:
-        index_dest.write_text(read_text(args.index), encoding="utf-8")
-    if index_dest.is_file():
-        index_data = load_yaml(index_dest)
+    index_data = load_yaml(index_dest) if index_dest.is_file() else None
 
     title, overview_body, overview_meta, source_note = render_overview_section(
-        index_data, as_dict(narration.get("overview")), warnings)
+        index_data, read_narration(bundle / "narration.json", "narration file"), warnings)
     if args.title:
         title = args.title
 
-    document = load_template("index.html")
+    document = load_template("main.html")
     document = document.replace("__TITLE__", inline(title))
     document = document.replace("__OVERVIEW_BODY__", overview_body)
     document = document.replace("__OVERVIEW_META__", overview_meta)
     document = document.replace("__SOURCE_NOTE__", source_note)
-    document = document.replace("__COURSE_CARDS__", render_course_cards(manifest))
-    (bundle / "index.html").write_text(document, encoding="utf-8")
+    document = document.replace("__LESSON_CARDS__", render_lesson_cards(manifest))
+    (bundle / "main.html").write_text(document, encoding="utf-8")
 
     write_manifest(bundle, manifest)
     return bundle, manifest, warnings
@@ -795,31 +854,39 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="build_lesson_html.py",
         description=(
             "Render a hands-on lesson bundle from index.yaml + lesson.yaml/evidence.yaml "
-            "plus a narration file holding the reader-facing prose. The markup lives in "
-            "templates/; this script fills it in. A new --lesson appends a course."
+            "plus the narration files holding the reader-facing prose. The markup lives in "
+            "templates/; this script fills it in. Every lesson directory under lessons/ is "
+            "rendered on each build."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
-            "example:\n"
+            "examples:\n"
+            "  python3 scripts/build_lesson_html.py --bundle ./lesson-bundle\n"
+            "\n"
             "  python3 scripts/build_lesson_html.py \\\n"
             "    --bundle ./lesson-bundle \\\n"
             "    --index ../generate-doc-index/references/sample-index.yaml \\\n"
-            "    --lesson ../generate-lesson-yaml/references/sample-lesson.yaml \\\n"
-            "    --narration references/sample-narration.json\n"
+            "    --lesson spotlight=../generate-lesson-yaml/references/sample-lesson.yaml \\\n"
+            "    --narration spotlight=references/sample-narration.json\n"
         ),
     )
-    parser.add_argument("--bundle", required=True, help="output bundle directory (created if missing)")
-    parser.add_argument("--lesson", action="append", default=[], metavar="[NAME=]PATH",
-                        help="a course: a lesson directory (lesson.yaml + evidence.yaml) or a "
-                             "lesson.yaml path; repeatable, appends/updates each run")
-    parser.add_argument("--narration", help="path to the narration JSON: every sentence the "
-                                            "learner reads (course/step lead-ins, cautions, "
-                                            "checkpoint wording, Japanese gist per source). "
-                                            "Merged into the bundle's narration.json and "
-                                            "reused when omitted")
-    parser.add_argument("--index", help="path to index.yaml (doc-index/v1); supplies the "
-                                        "availability chips")
-    parser.add_argument("--title", help="optional override for the course-list title")
+    parser.add_argument("--bundle", required=True,
+                        help="the bundle directory (the one holding index.yaml; created if missing)")
+    parser.add_argument("--lesson", action="append", default=[], metavar="[ID=]PATH",
+                        help="import a lesson from outside the bundle: a lesson directory "
+                             "(lesson.yaml + evidence.yaml) or a lesson.yaml path. Copied into "
+                             "lessons/<id>/; repeatable. Lessons already inside the bundle need "
+                             "no flag")
+    parser.add_argument("--narration", action="append", default=[], metavar="ID=PATH",
+                        help="merge a narration JSON into lessons/<id>/narration.json: every "
+                             "sentence the learner reads (lesson/step lead-ins, cautions, "
+                             "checkpoint wording, Japanese gist per source); repeatable")
+    parser.add_argument("--overview", metavar="PATH",
+                        help="merge a narration JSON into the bundle's narration.json — the "
+                             "prose on main.html (title / lead / notes / source_note)")
+    parser.add_argument("--index", help="path to index.yaml (doc-index/v1); copied into the "
+                                        "bundle and used for the availability chips")
+    parser.add_argument("--title", help="optional override for the lesson-list title")
     return parser.parse_args(argv)
 
 
@@ -828,15 +895,15 @@ def main(argv: list[str] | None = None) -> int:
     bundle, manifest, warnings = build(args)
 
     totals = {key: 0 for key in ORIGIN_ORDER}
-    for course in manifest:
-        for key, value in (course.get("origins") or {}).items():
+    for entry in manifest:
+        for key, value in (entry.get("origins") or {}).items():
             totals[key] = totals.get(key, 0) + value
 
-    print(f"build_lesson_html.py: wrote bundle {bundle.resolve()} ({len(manifest)} course(s))")
-    for course in manifest:
-        print(f"  - {course['id']}: {course['title']} "
-              f"({course.get('steps', 0)} steps, {course.get('facts', 0)} facts)"
-              f"{' [truncated]' if course.get('truncated') else ''}")
+    print(f"build_lesson_html.py: wrote bundle {bundle.resolve()} ({len(manifest)} lesson(s))")
+    for entry in manifest:
+        print(f"  - {entry['id']}: {entry['title']} "
+              f"({entry.get('steps', 0)} steps, {entry.get('facts', 0)} facts)"
+              f"{' [truncated]' if entry.get('truncated') else ''}")
     print("  origin (author-facing, not shown in the UI): "
           + ", ".join(f"{k}={totals.get(k, 0)}" for k in ORIGIN_ORDER))
     if warnings:
@@ -845,7 +912,7 @@ def main(argv: list[str] | None = None) -> int:
         for warning in warnings:
             print(f"  [warn] {warning}", file=sys.stderr)
     print("build_lesson_html.py: next, validate the bundle, e.g.:")
-    print(f"  python3 scripts/validate_html.py {bundle}/index.html {bundle}/views/*.html --strict")
+    print(f"  python3 scripts/validate_html.py {bundle}/main.html {bundle}/lessons/*/*.html --strict")
     return 0
 
 

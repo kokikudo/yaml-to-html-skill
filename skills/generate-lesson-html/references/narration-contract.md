@@ -4,64 +4,86 @@
 メモ、`outcome` は到達点の一行、`expect` は確認内容の要約——どれも作り手のための言葉で、
 そのまま画面に出すと事務的な箇条書きになる。
 
-そこで**受講者が読む文章はすべて別に書き起こす**。それが narration JSON（`--narration`）。
+そこで**受講者が読む文章はすべて別に書き起こす**。それが narration JSON。
 
 ```
 lesson.yaml      … タイトル / ファイルパス / ソースコード / 手順の順序 / 出典の対応
-narration JSON   … 受講者が読む文章のすべて（導入・コードの説明・注意書き・確認の言い回し・出典の要旨）
+narration.json   … 受講者が読む文章のすべて（導入・コードの説明・注意書き・確認の言い回し・出典の要旨）
 ```
 
 **画面に出る文章のうち、タイトルとソースコード以外はここから来る。** narration が無い項目は
 `lesson.yaml` の文へフォールバックするが、そのとき必ずビルド警告が出る。警告が出ている
 教材は「まだ書かれていない」と考える。
 
-## ビルドでの扱い
+## どこに置くか
 
-- `--narration path.json` で渡す。バンドルの `narration.json` に**マージして保存**され、次回以降
-  `--narration` を省略しても保持される（コースを 1 つ足すだけの再ビルドで文章が消えない）。
-- 部分的に渡してよい。渡した部分だけが上書きされる（辞書は再帰的にマージ）。
+narration JSON は**それが説明するページの隣に置く**。2 種類ある。
+
+```
+<bundle>/narration.json                       main.html（レッスン一覧）の文章
+<bundle>/lessons/<lesson_id>/narration.json   そのレッスン 1 本の文章
+```
+
+- **バンドルに直接書いてよい。** ビルドはこの 2 か所を読むだけなので、ファイルを書いてから
+  `--bundle` だけでビルドすれば反映される。
+- バンドルの外にある JSON を取り込むときだけフラグを使う。`--overview PATH` は一覧側へ、
+  `--narration <lesson_id>=PATH` はそのレッスンへ**マージ**される（辞書は再帰的にマージ。
+  部分的に渡してよい）。
+- レッスンを `--lesson` で取り込むとき、取り込み元に `narration.json` があれば一緒に運ばれる。
 
 ## 形
 
+### `<bundle>/narration.json`（レッスン一覧）
+
 ```jsonc
 {
-  "overview": {                     // コース一覧ページ
-    "title": "App Intents ハンズオン",
-    "lead": "概要本文。空行で段落を分ける",
-    "notes": ["ページ下部に出る補足（任意）"],
-    "source_note": "出典についての一言（任意）"
-  },
-  "courses": {
-    "<コース id>": {                 // courses.json の id（既定は project.name のスラグ）
-      "summary": "コースカードに出る 1〜2 文",
-      "lead": "コース概要ページの導入。ここが最初に読まれる文章",
-      "goal": "終えたときの状態（任意・省略時は goal.outcome）",
-      "requirements_lead": "前提の前置き（任意）",
-      "requirements": ["前提を書き直す（任意・lesson.yaml の順に対応）"],
-      "scaffold_lead": "下ごしらえの前置き（任意）",
-      "scaffold": ["下ごしらえの手順を書き直す（任意）"],
-      "covers": ["扱うことを読者の言葉で（任意）"],
-      "excludes": ["扱わないことを読者の言葉で（任意）"],
-      "notes": ["概要ページの補足（任意）"],
-      "truncated_note": "途中までのコースの説明（scope.truncated のとき）",
+  "title": "RealityKit ハンズオン",
+  "lead": "索引が指すドキュメントの概要。空行で段落を分ける",
+  "notes": ["ページ下部に出る補足（任意）"],
+  "source_note": "出典についての一言（任意）"
+}
+```
 
-      "steps": {
-        "<step id>": {
-          "lead": "この手順の導入。なぜ今これをやるのか、前の手順とどう繋がるのか",
-          "files": {
-            "<lesson.yaml と同じ path>": "このコードが何をしているかの説明"
-          },
-          "notes": ["先回りして不安を消す注意書き"],
-          "checkpoint": "ここまでで何が確認できるかの言い回し"
-        }
+**`lead` に書くのは「索引が指すドキュメントが何であるか」。** レッスンの紹介ではない
+（それは各レッスンの `summary` がカードに出す）。`index.yaml` の
+`source.root_abstract`（そのページ自身の概要・英語）と `source.root_title` を読み、
+**日本語に書き起こす**。原文をそのまま貼らない。
+
+`developer.apple.com/documentation/realitykit` の索引なら、`RealityKit` が何をする
+フレームワークなのかを書く。そこに並ぶレッスンが何本あるかや、どの順で進めるかは書かない
+（レッスンが増減しても概要が古びないように）。教材の進め方に触れたいときは `notes` に置く。
+
+### `<bundle>/lessons/<lesson_id>/narration.json`（レッスン 1 本）
+
+```jsonc
+{
+  "summary": "レッスンカードに出る 1〜2 文",
+  "lead": "レッスン概要ページの導入。ここが最初に読まれる文章",
+  "goal": "終えたときの状態（任意・省略時は goal.outcome）",
+  "requirements_lead": "前提の前置き（任意）",
+  "requirements": ["前提を書き直す（任意・lesson.yaml の順に対応）"],
+  "scaffold_lead": "下ごしらえの前置き（任意）",
+  "scaffold": ["下ごしらえの手順を書き直す（任意）"],
+  "covers": ["扱うことを読者の言葉で（任意）"],
+  "excludes": ["扱わないことを読者の言葉で（任意）"],
+  "notes": ["概要ページの補足（任意）"],
+  "truncated_note": "途中までのレッスンの説明（scope.truncated のとき）",
+
+  "steps": {
+    "<step id>": {
+      "lead": "この手順の導入。なぜ今これをやるのか、前の手順とどう繋がるのか",
+      "files": {
+        "<lesson.yaml と同じ path>": "このコードが何をしているかの説明"
       },
+      "notes": ["先回りして不安を消す注意書き"],
+      "checkpoint": "ここまでで何が確認できるかの言い回し"
+    }
+  },
 
-      "evidence": {
-        "lead": "出典一覧ページの前置き（任意）",
-        "facts": {
-          "<fact id>": "その出典の日本語要旨。原文の隣に並ぶ"
-        }
-      }
+  "evidence": {
+    "lead": "出典一覧ページの前置き（任意）",
+    "facts": {
+      "<fact id>": "その出典の日本語要旨。原文の隣に並ぶ"
     }
   }
 }
@@ -99,16 +121,12 @@ narration JSON   … 受講者が読む文章のすべて（導入・コード�
 
 ```json
 {
-  "overview": {"lead": "…"},
-  "courses": {
-    "spotlightphotos": {
-      "summary": "…",
-      "lead": "…",
-      "steps": {"st-entity": {"lead": "…", "checkpoint": "…"}},
-      "evidence": {"facts": {"f-appentity-requirements": "…"}}
-    }
-  }
+  "summary": "…",
+  "lead": "…",
+  "steps": {"st-entity": {"lead": "…", "checkpoint": "…"}},
+  "evidence": {"facts": {"f-appentity-requirements": "…"}}
 }
 ```
 
-まとまった実例は `sample-narration.json`（4 手順・出典 6 件のコース 1 本）。
+まとまった実例は `sample-narration.json`（4 手順・出典 6 件のレッスン 1 本）と
+`sample-overview.json`（一覧側）。

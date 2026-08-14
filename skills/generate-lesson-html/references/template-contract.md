@@ -4,14 +4,14 @@ HTML の**唯一の出所**は `templates/` の 2 ファイル。`build_lesson_h
 `__TOKEN__` を置換するだけで、外枠・CSS・JS を組み立てない。
 
 ```
-templates/index.html    コース一覧
-templates/course.html   コース 1 つ分のページ
+templates/main.html     レッスン一覧
+templates/lesson.html   レッスン 1 本のページ
 ```
 
 ## 編集のルール
 
-- **レイアウトを変えるときはテンプレートを直す。** 生成された `<bundle>/index.html` や
-  `views/*.html` を手で直しても、次のビルドで消える。
+- **レイアウトを変えるときはテンプレートを直す。** 生成された `<bundle>/main.html` や
+  `lessons/*/*.html` を手で直しても、次のビルドで消える。
 - **テンプレート先頭の `<!-- … -->` は差し込み口の説明。** ビルド時に取り除かれる
   （そこに書かれた `__TOKEN__` まで置換されないようにするため）。
 - **`__TOKEN__` を増やすときは、テンプレートとスクリプトの両方を同時に直す。** 置換され
@@ -19,22 +19,22 @@ templates/course.html   コース 1 つ分のページ
 - **外部リソースを足さない。** `<link rel="stylesheet">` / `<script src>` / 外部フォント /
   リモート画像は `validate_html.py` が落とす。CSS も JS もインラインのまま。
 
-## `templates/index.html` の差し込み口
+## `templates/main.html` の差し込み口
 
 | トークン | 中身 | 元データ |
 |---|---|---|
-| `__TITLE__` | ページ見出し | `narration.overview.title` →（無ければ）`index.yaml` の `source.root_title` |
-| `__OVERVIEW_BODY__` | 概要本文 + 補足 | `narration.overview.lead` / `notes` |
+| `__TITLE__` | ページ見出し | バンドル直下 `narration.json` の `title` →（無ければ）`index.yaml` の `source.root_title` |
+| `__OVERVIEW_BODY__` | 概要本文 + 補足 | バンドル直下 `narration.json` の `lead` / `notes`（`lead` は `index.yaml` の `source.root_abstract` を日本語に書き起こしたもの） |
 | `__OVERVIEW_META__` | 対応環境のチップ列 | `index.yaml` の `source.availability` |
-| `__SOURCE_NOTE__` | 出典表記 | `narration.overview.source_note` →（無ければ）`source.site` |
-| `__COURSE_CARDS__` | コースカード | `courses.json` + `narration.courses.<id>.summary` |
+| `__SOURCE_NOTE__` | 出典表記 | バンドル直下 `narration.json` の `source_note` →（無ければ）`source.site` |
+| `__LESSON_CARDS__` | レッスンカード | `lessons.json` + 各レッスンの `narration.json` の `summary` |
 
-## `templates/course.html` の差し込み口
+## `templates/lesson.html` の差し込み口
 
 | トークン | 中身 | 元データ |
 |---|---|---|
-| `__COURSE_TITLE__` | ヘッダーのコース名 | `goal.title` |
-| `__BACK_HREF__` | 戻り先 | 固定 `../index.html` |
+| `__LESSON_TITLE__` | ヘッダーのレッスン名 | `goal.title` |
+| `__BACK_HREF__` | 戻り先 | 固定 `../../main.html` |
 | `__STEP_COUNT__` | 「全 N 手順」 | `steps` の数 |
 | `__NAV_ITEMS__` | 左ペインの `<li><button class="nav-btn">` 群 | 概要 + 各 Step + 出典一覧 |
 | `__PANELS__` | 右ペインの `<article class="panel">` 群 | 同上（ナビと同じ順・同じ数） |
@@ -49,7 +49,7 @@ templates/course.html   コース 1 つ分のページ
 
 | 画面の場所 | 事実（YAML） | 文章（narration） |
 |---|---|---|
-| コースカード | `goal.title` / 手順数 / `stack` | `summary` |
+| レッスンカード | `goal.title` / 手順数 / `stack` | `summary` |
 | 概要ページ | 手順数・`stack`・前提・下ごしらえ・扱う範囲 | `lead` / `goal` / `notes` / 各リストの書き直し |
 | Step ページ | `title` / ファイルパス / `action` / `lang` / コード全文 / `checkpoint.kind` | `lead` / `files.<path>` / `notes` / `checkpoint` |
 | つまずき | `common_errors[].symptom` / `cause` | （YAML のまま。記載のあるものだけなので） |
