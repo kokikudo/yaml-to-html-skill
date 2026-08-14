@@ -9,7 +9,8 @@ description: lesson.yaml と evidence.yaml（generate-lesson-yaml の出力）�
 文章**を、オフラインで完結する HTML バンドルにするスキル。
 
 ```
-index.yaml（doc-index/v1・任意）
+index.yaml（doc-index/v1）
+        ↓ 読んで一覧の概要を書く（ビルドは読まない）
 lesson.yaml + evidence.yaml（generate-lesson-yaml の出力・1 レッスンにつき 1 組）
 narration JSON（このスキルが書く受講者向けの文章）
         ↓ テンプレートに流し込む
@@ -17,8 +18,12 @@ narration JSON（このスキルが書く受講者向けの文章）
           lessons/<id>/<id>.html          レッスン本体（左: Step ナビ / 右: その Step / 左上: 戻る）
 ```
 
-`--bundle` に渡すのは、`index.yaml` と `lessons/<レッスン名>/` がある**前段までの出力
-ディレクトリ**。そこに文章と HTML を足す。
+`--bundle` に渡すのは、`lessons/<レッスン名>/` がある**前段までの出力ディレクトリ**。そこに
+文章と HTML を足す。
+
+**ビルドの入力は `lesson.yaml` / `evidence.yaml` / `narration.json` の 3 つだけ。**
+`index.yaml` は「一覧の概要を書くために読む」上流の資料であって、`build_lesson_html.py` は
+読まない。索引から画面に出したいもの（見出し・対応環境）は、narration JSON に写して渡す。
 
 ## 中心にある考え方: 記録と本文は別物
 
@@ -64,8 +69,8 @@ narration JSON（このスキルが書く受講者向けの文章）
 
 ```
 <bundle>/
-  index.yaml                  # 索引（generate-doc-index）
-  narration.json              # <new> main.html の文章（title / lead / notes / source_note）
+  index.yaml                  # 索引（generate-doc-index）。出所の記録で、ビルドは読まない
+  narration.json              # <new> main.html の中身（title / lead / availability / notes / source_note）
   lessons.json                # <new> レッスンの順序付きマニフェスト（ビルドが生成）
   main.html                   # <new> 最初のページ。lessons/<id>/<id>.html とリンク
   lessons/                    # 全レッスンを格納したディレクトリ
@@ -81,9 +86,9 @@ narration JSON（このスキルが書く受講者向けの文章）
 
 ## 手順
 
-1. **バンドルを確かめる。** `index.yaml` と `lessons/<レッスン名>/lesson.yaml` +
-   `evidence.yaml` があるディレクトリ。無ければ先に `generate-lesson-yaml` を
-   実行する（索引が無ければ `generate-doc-index` から）。
+1. **バンドルを確かめる。** `lessons/<レッスン名>/lesson.yaml` + `evidence.yaml` がある
+   ディレクトリ。無ければ先に `generate-lesson-yaml` を実行する（索引が無ければ
+   `generate-doc-index` から）。`index.yaml` は次の手順で読むので、場所を控えておく。
 
 2. **受講者向けの文章を書き起こす（このスキルの本体）。** narration JSON を
    `lessons/<レッスン名>/narration.json` と、一覧用に `<bundle>/narration.json` へ書く。
@@ -96,6 +101,9 @@ narration JSON（このスキルが書く受講者向けの文章）
      `source.root_title` と `source.root_abstract` を読み、そのドキュメントが何であるかを
      日本語に書き起こす（英語の原文は転記しない）。レッスンの紹介ではない — それは各レッスンの
      `summary` がカードに出す。
+   - **索引を読むのはここだけ。** ビルドは `index.yaml` を読まないので、画面に出したい索引の
+     情報は `<bundle>/narration.json` に写す。`title`（`source.root_title` をもとに）と
+     `availability`（`source.availability` をそのまま）。
    - **話し言葉に近いですます調**で、声に出して読める文章にする。
    - **`lesson.yaml` の文を写さない。** `why` を語り直す。`expect` を言い換える。
    - **導入は「なぜ今これをやるのか」から。** 前の手順との繋がりを必ず書く。
@@ -139,11 +147,14 @@ python3 scripts/build_lesson_html.py --bundle ./lesson-bundle
 # バンドルの外にある材料を取り込みながらビルドする
 python3 scripts/build_lesson_html.py \
   --bundle ./lesson-bundle \
-  --index /abs/path/index.yaml \
   --lesson spotlight=/abs/path/elsewhere/spotlight \
   --narration spotlight=/abs/path/narration.json \
   --overview /abs/path/overview.json
 ```
+
+引数は 4 つだけで、**すべて「画面に出るものを渡す」フラグ**。`index.yaml` を渡すフラグは
+無い（ビルドが読まないので、渡せると誤解のもとになる）。索引はバンドル直下に置いたままに
+しておく — 出所の記録であり、次にレッスンを足すときに読む資料でもある。
 
 - `--bundle` のみ必須。**バンドルの中にあるレッスンは毎回すべてビルドされる**ので、
   既にバンドルに置いたレッスンにフラグは要らない。
@@ -155,9 +166,9 @@ python3 scripts/build_lesson_html.py \
   繰り返し可。
 - `--narration "レッスンID=パス"` はそのレッスンの `narration.json` に**マージ**される。
   部分的に渡してよい。繰り返し可。
-- `--overview` は一覧ページの文章。バンドル直下の `narration.json` にマージされる。
-- `--index` は対応環境のチップに使う。概要文には使わない（英語の原文を転記しないため）。
-  省略するとバンドル内の既存 `index.yaml` を使う。
+- `--overview` は一覧ページの文章。バンドル直下の `narration.json` にマージされる。見出し
+  （`title`）と対応環境チップ（`availability`）もここから出るので、上書きしたいときは
+  このファイルを直す。
 
 検証（オフライン安全性）:
 
@@ -177,8 +188,11 @@ python3 scripts/validate_html.py ./lesson-bundle/main.html ./lesson-bundle/lesso
 
 - **`lessons/<id>/narration.json がありません`** — そのレッスンの文章が未執筆で、画面が
   `lesson.yaml` の転記になっている。narration JSON を書く。
-- **`narration.json に lead がありません`** — 一覧ページの概要が空になる。バンドル直下の
-  `narration.json` を書く。
+- **`narration.json に lead がありません` / `… に title がありません`** — 一覧ページの概要が
+  空になる／見出しが既定値になる。バンドル直下の `narration.json` を書く（`index.yaml` を
+  置いても直らない。ビルドは索引を読まない）。
+- **対応環境のチップが出ない** — バンドル直下の `narration.json` に `availability` が無い。
+  `index.yaml` の `source.availability` をそのまま写す。
 - **`解説文の evidence.facts に '…' の日本語要旨がありません`** — 出典一覧にその項目の要旨が
   出ない。
 - **`build_lesson_html.py: could not parse …`** — 同梱の YAML ローダ（`mini_yaml.py`）は
@@ -197,9 +211,12 @@ python3 scripts/validate_html.py ./lesson-bundle/main.html ./lesson-bundle/lesso
 ## 同梱サンプルで試す
 
 ```bash
+# 索引はバンドル直下に置く（出所の記録。ビルドは読まない）
+mkdir -p ./sample-bundle
+cp ../generate-doc-index/references/sample-index.yaml ./sample-bundle/index.yaml
+
 python3 scripts/build_lesson_html.py \
   --bundle ./sample-bundle \
-  --index ../generate-doc-index/references/sample-index.yaml \
   --lesson spotlightphotos=../generate-lesson-yaml/references/sample-lesson.yaml \
   --narration spotlightphotos=references/sample-narration.json \
   --overview references/sample-overview.json

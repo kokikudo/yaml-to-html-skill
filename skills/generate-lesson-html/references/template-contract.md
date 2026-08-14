@@ -23,11 +23,15 @@ templates/lesson.html   レッスン 1 本のページ
 
 | トークン | 中身 | 元データ |
 |---|---|---|
-| `__TITLE__` | ページ見出し | バンドル直下 `narration.json` の `title` →（無ければ）`index.yaml` の `source.root_title` |
-| `__OVERVIEW_BODY__` | 概要本文 + 補足 | バンドル直下 `narration.json` の `lead` / `notes`（`lead` は `index.yaml` の `source.root_abstract` を日本語に書き起こしたもの） |
-| `__OVERVIEW_META__` | 対応環境のチップ列 | `index.yaml` の `source.availability` |
-| `__SOURCE_NOTE__` | 出典表記 | バンドル直下 `narration.json` の `source_note` →（無ければ）`source.site` |
+| `__TITLE__` | ページ見出し | バンドル直下 `narration.json` の `title` |
+| `__OVERVIEW_BODY__` | 概要本文 + 補足 | バンドル直下 `narration.json` の `lead` / `notes` |
+| `__OVERVIEW_META__` | 対応環境のチップ列 | バンドル直下 `narration.json` の `availability` |
+| `__SOURCE_NOTE__` | 出典表記 | バンドル直下 `narration.json` の `source_note` |
 | `__LESSON_CARDS__` | レッスンカード | `lessons.json` + 各レッスンの `narration.json` の `summary` |
+
+`__LESSON_CARDS__` 以外はすべてバンドル直下の `narration.json` 由来。`index.yaml` を読んで
+`title` / `lead` / `availability` を書くのは narration を書く工程であって、ビルドは索引を
+読まない（→ `bundle-structure.md`）。
 
 ## `templates/lesson.html` の差し込み口
 

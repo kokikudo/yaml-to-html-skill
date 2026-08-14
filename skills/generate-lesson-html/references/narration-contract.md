@@ -39,6 +39,7 @@ narration JSON は**それが説明するページの隣に置く**。2 種類�
 {
   "title": "RealityKit ハンズオン",
   "lead": "索引が指すドキュメントの概要。空行で段落を分ける",
+  "availability": ["iOS 18.0+", "visionOS 2.0+"],
   "notes": ["ページ下部に出る補足（任意）"],
   "source_note": "出典についての一言（任意）"
 }
@@ -48,6 +49,14 @@ narration JSON は**それが説明するページの隣に置く**。2 種類�
 （それは各レッスンの `summary` がカードに出す）。`index.yaml` の
 `source.root_abstract`（そのページ自身の概要・英語）と `source.root_title` を読み、
 **日本語に書き起こす**。原文をそのまま貼らない。
+
+**`availability` は `index.yaml` の `source.availability` をそのまま写す。** 概要の下に
+チップで並ぶ。`iOS 16.0+` のような版数表記なので、ここだけは書き起こさず転記でよい。索引に
+無ければ省略する（チップが出ないだけ）。
+
+> `index.yaml` を読むのは**このファイルを書くとき**だけ。ビルドは `index.yaml` を読まない
+> ので、書き漏らした項目は画面に出ない。逆に、索引を後から直しても narration を直さない
+> 限り画面は変わらない。
 
 `developer.apple.com/documentation/realitykit` の索引なら、`RealityKit` が何をする
 フレームワークなのかを書く。そこに並ぶレッスンが何本あるかや、どの順で進めるかは書かない

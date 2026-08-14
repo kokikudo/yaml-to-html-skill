@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """build_lesson_html.py
 
-Render a hands-on **lesson bundle** from ``index.yaml`` (doc-index/v1), one or more
-``lesson.yaml`` / ``evidence.yaml`` pairs (lesson/v1 + evidence/v1), and the **narration
-files** holding the reader-facing Japanese prose.
+Render a hands-on **lesson bundle** from one or more ``lesson.yaml`` / ``evidence.yaml``
+pairs (lesson/v1 + evidence/v1) and the **narration files** holding the reader-facing
+Japanese prose. Those are the only inputs: ``index.yaml`` belongs to the upstream skills
+(it is what the narration author read to write the overview), and the build never reads it.
 
 Two kinds of input, on purpose
 ------------------------------
@@ -28,8 +29,10 @@ What it produces
 ----------------
 
     <bundle>/
-      index.yaml                 the doc index (availability chips); copied in by --index
-      narration.json             prose for main.html (title / lead / notes / source_note)
+      index.yaml                 the doc index the material came from, left where the
+                                 upstream skills put it. Not read by this script.
+      narration.json             everything main.html shows (title / lead / availability /
+                                 notes / source_note)
       lessons.json               ordered manifest: {"lessons":[{id,file,title,...}, ...]}
       main.html                  lesson list; links to lessons/<id>/<id>.html
       lessons/<id>/lesson.yaml
@@ -52,7 +55,6 @@ Example
 
     python3 scripts/build_lesson_html.py \
       --bundle ./lesson-bundle \
-      --index /abs/path/index.yaml \
       --lesson spotlight=/abs/path/elsewhere/spotlight \
       --narration spotlight=/abs/path/narration.json
 """
@@ -530,17 +532,21 @@ def render_lesson_page(lesson: dict, evidence: dict, narration: dict, back_href:
 # main page rendering
 # ---------------------------------------------------------------------------
 
-def render_overview_section(index_data: dict | None, narration: dict,
-                            warnings: list[str]) -> tuple[str, str, str, str]:
+def render_overview_section(narration: dict, warnings: list[str]) -> tuple[str, str, str, str]:
     """Return (page title, overview body, meta chips, closing note).
 
-    The overview describes **the documentation the index points at** (its root title,
-    abstract and availability), not the lessons — the lessons have their own cards below it.
-    The English ``root_abstract`` is never transcribed: the narration author rewrites it in
-    Japanese, so the page stays readable and the source stays one link away.
+    Every part of this section comes from the bundle's ``narration.json`` — the same rule
+    the rest of the page follows. The overview describes **the documentation the index
+    points at**, not the lessons (the lessons have their own cards below it), but the
+    narration author is the one who read the index and wrote that description in Japanese;
+    the build never reads ``index.yaml``.
     """
-    source = as_dict((index_data or {}).get("source"))
-    title = str(narration.get("title") or source.get("root_title") or "ハンズオン教材")
+    title = narration.get("title")
+    if not title:
+        warnings.append("narration.json に title がありません"
+                        "（レッスン一覧の見出しが既定値になります。index.yaml の "
+                        "source.root_title をもとに付けてください）")
+    title = str(title or "ハンズオン教材")
 
     lead = narration.get("lead")
     if lead:
@@ -555,15 +561,13 @@ def render_overview_section(index_data: dict | None, narration: dict,
     for note in as_list(narration.get("notes")):
         body += f'\n<div class="note">{inline(note)}</div>'
 
-    chips = [f'<span class="chip">{esc(a)}</span>' for a in as_list(source.get("availability"))]
+    chips = [f'<span class="chip">{esc(a)}</span>'
+             for a in as_list(narration.get("availability"))]
     meta = f'<div class="chips">{"".join(chips)}</div>' if chips else ""
 
     note = ""
     if narration.get("source_note"):
         note = f'<p class="source-note">{inline(narration["source_note"])}</p>'
-    elif source.get("site"):
-        note = (f'<p class="source-note">出典: {esc(source["site"])}'
-                f'{" / " + esc(source["root_path"]) if source.get("root_path") else ""}</p>')
     return (title, body, meta, note)
 
 
@@ -797,8 +801,6 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
     if args.overview:
         merge_narration(bundle / "narration.json", Path(args.overview).expanduser(),
                         "overview narration file")
-    if args.index:
-        copy_file(Path(args.index).expanduser(), bundle / "index.yaml")
 
     # --- render every lesson the bundle holds (additive by construction) ---
     manifest: list[dict] = []
@@ -829,13 +831,8 @@ def build(args: argparse.Namespace) -> tuple[Path, list[dict], list[str]]:
         )
 
     # --- the main page ---
-    index_dest = bundle / "index.yaml"
-    index_data = load_yaml(index_dest) if index_dest.is_file() else None
-
     title, overview_body, overview_meta, source_note = render_overview_section(
-        index_data, read_narration(bundle / "narration.json", "narration file"), warnings)
-    if args.title:
-        title = args.title
+        read_narration(bundle / "narration.json", "narration file"), warnings)
 
     document = load_template("main.html")
     document = document.replace("__TITLE__", inline(title))
@@ -853,8 +850,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="build_lesson_html.py",
         description=(
-            "Render a hands-on lesson bundle from index.yaml + lesson.yaml/evidence.yaml "
-            "plus the narration files holding the reader-facing prose. The markup lives in "
+            "Render a hands-on lesson bundle from lesson.yaml + evidence.yaml plus the "
+            "narration files holding the reader-facing prose. The markup lives in "
             "templates/; this script fills it in. Every lesson directory under lessons/ is "
             "rendered on each build."
         ),
@@ -865,13 +862,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "\n"
             "  python3 scripts/build_lesson_html.py \\\n"
             "    --bundle ./lesson-bundle \\\n"
-            "    --index ../generate-doc-index/references/sample-index.yaml \\\n"
             "    --lesson spotlight=../generate-lesson-yaml/references/sample-lesson.yaml \\\n"
-            "    --narration spotlight=references/sample-narration.json\n"
+            "    --narration spotlight=references/sample-narration.json \\\n"
+            "    --overview references/sample-overview.json\n"
         ),
     )
     parser.add_argument("--bundle", required=True,
-                        help="the bundle directory (the one holding index.yaml; created if missing)")
+                        help="the bundle directory (the one holding lessons/; created if missing)")
     parser.add_argument("--lesson", action="append", default=[], metavar="[ID=]PATH",
                         help="import a lesson from outside the bundle: a lesson directory "
                              "(lesson.yaml + evidence.yaml) or a lesson.yaml path. Copied into "
@@ -882,11 +879,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "sentence the learner reads (lesson/step lead-ins, cautions, "
                              "checkpoint wording, Japanese gist per source); repeatable")
     parser.add_argument("--overview", metavar="PATH",
-                        help="merge a narration JSON into the bundle's narration.json — the "
-                             "prose on main.html (title / lead / notes / source_note)")
-    parser.add_argument("--index", help="path to index.yaml (doc-index/v1); copied into the "
-                                        "bundle and used for the availability chips")
-    parser.add_argument("--title", help="optional override for the lesson-list title")
+                        help="merge a narration JSON into the bundle's narration.json — "
+                             "everything main.html shows (title / lead / availability / "
+                             "notes / source_note)")
     return parser.parse_args(argv)
 
 

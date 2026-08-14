@@ -5,8 +5,8 @@
 
 ```
 <bundle>/
-  index.yaml                  索引（generate-doc-index が作る。対応環境チップの取得元）
-  narration.json              main.html の文章（title / lead / notes / source_note）
+  index.yaml                  索引（generate-doc-index が作る）。出所の記録。ビルドは読まない
+  narration.json              main.html の中身（title / lead / availability / notes / source_note）
   lessons.json                レッスンの順序付きマニフェスト（ビルドが生成）
   main.html                   レッスン一覧（概要 / レッスンカード）
   lessons/
@@ -26,6 +26,12 @@
 画面に出る文章のうち、**タイトルとソースコード以外は `narration.json` から来る**。`lesson.yaml`
 は記録であって教材の本文ではないため（→ `narration-contract.md`）。
 
+**ビルドの入力は `lesson.yaml` / `evidence.yaml` / `narration.json` の 3 つだけ。**
+`index.yaml` は上流（`generate-lesson-yaml`、および narration を書く工程）の入力であって、
+`build_lesson_html.py` は読まない。バンドルに置いてあるのは「この教材がどの索引から生えたか」
+を残すため（次にレッスンを足すとき、概要を書き直すのに読む資料でもある）。ビルドに索引を
+渡すフラグは無い。
+
 `scripts/build_lesson_html.py` がこの形を作り、維持する。
 
 ## iframe を使わない
@@ -43,8 +49,8 @@
 ## 画面 1: レッスン一覧（`main.html`）
 
 ```text
-header            index.yaml の source.root_title + ライト/ダークトグル
-概要              索引が指すドキュメントの概要（書き起こした文章）+ index.yaml の対応環境チップ
+header            narration の title + ライト/ダークトグル
+概要              索引が指すドキュメントの概要（書き起こした文章）+ 対応環境チップ
 レッスン          レッスンカードのグリッド。1 枚 = 1 レッスン
                     タイトル / narration の summary / 手順数 / stack
 inline <style> / <script>   外部 CSS・JS なし
@@ -56,6 +62,9 @@ inline <style> / <script>   外部 CSS・JS なし
 - ただし `index.yaml` の `root_abstract`（英語の原文）は**転記しない**。それを日本語に
   書き起こした文章をバンドル直下の `narration.json` の `lead` から出す。無い場合は
   プレースホルダになり、ビルドが警告する。
+- **見出しもチップも `narration.json` から出す**（`title` / `availability`）。索引を読んで
+  それらを書くのは narration を書く工程の仕事で、ビルドの仕事ではない。無ければ見出しは
+  既定値になって警告、チップは出ない。
 - カードは `lessons.json` の順。
 
 ## 画面 2: レッスン本体（`lessons/<lesson_id>/<lesson_id>.html`）

@@ -44,7 +44,9 @@ workflow:
   - id: write_narration
     goal: write the learner-facing Japanese prose as narration JSON — the lesson-list
       overview (a Japanese rewrite of index.yaml's source.root_abstract: what the indexed
-      DOCUMENTATION is, not a pitch for the lessons), lesson lead-in, per-step lead-in
+      DOCUMENTATION is, not a pitch for the lessons — plus its title, and its
+      source.availability copied verbatim into the overview narration's availability field:
+      the build reads narration.json, never index.yaml), lesson lead-in, per-step lead-in
       ("why now", linking back to the previous step), per-file explanation, cautions,
       checkpoint wording, and a gist per quoted source. Spoken-style です・ます; proper
       nouns in backticks; never transcribe the English abstract or lesson.yaml's
@@ -84,7 +86,7 @@ tools:
     args:
       - name: --bundle
         required: true
-        description: the bundle directory (the one holding index.yaml; created if missing).
+        description: the bundle directory (the one holding lessons/; created if missing).
           Every lessons/<id>/ inside it is rendered on each build
       - name: --lesson
         required: false
@@ -99,14 +101,9 @@ tools:
       - name: --overview
         required: false
         description: path to the narration JSON for main.html; merged into the bundle's
-          narration.json
-      - name: --index
-        required: false
-        description: path to index.yaml (doc-index/v1); copied into the bundle and used for
-          the availability chips (its English abstract is never transcribed into the page)
-      - name: --title
-        required: false
-        description: override the lesson-list title
+          narration.json. This is the only way to set the lesson-list title, its prose and
+          the availability chips — there is no flag for index.yaml, which the build never
+          reads
   - name: validate_html
     type: shell
     command: python3 scripts/validate_html.py
@@ -143,11 +140,12 @@ constraints:
     - any http:// or https:// string (paths are labels, with the scheme dropped)
 
 inputs:
-  - the bundle directory (index.yaml + lessons/<id>/lesson.yaml + evidence.yaml)
+  - the bundle directory (lessons/<id>/lesson.yaml + evidence.yaml; index.yaml sits beside
+    them as a record of the source, read while writing the narration, not by the build)
   - the narration JSON files written by this skill: <bundle>/narration.json for the lesson
     list and <bundle>/lessons/<id>/narration.json for each lesson
   - absolute paths to outside material to import (optional: --lesson / --narration /
-    --overview / --index)
+    --overview)
 
 outputs:
   - a bundle directory (index.yaml + narration.json + lessons.json + main.html +
