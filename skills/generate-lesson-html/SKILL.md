@@ -120,7 +120,6 @@ narration JSON（このスキルが書く受講者向けの文章）
    - narration が無い箇所（その項目は YAML の転記になっている）
    - `origin` の規則違反（`source_refs` の件数 / `origin_note` の有無）
    - 存在しない `source_refs`、どこからも参照されない fact、`step.id` の重複
-   - 残っている `see_also`（lesson/v1 から削除済み。表示せず無視する）
 
 5. **検証する。** `scripts/validate_html.py` を `main.html` と全 `lessons/*/*.html` に
    `--strict` で実行し、0 で終了するまで直す。
